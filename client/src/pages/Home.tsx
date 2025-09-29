@@ -7,7 +7,7 @@ export default function Home() {
       <Card variant="outlined" sx={{ borderRadius: 6 }}>
         <CardContent>
           <Typography variant="h4" gutterBottom>
-            Welcome 👋
+            Welcome 
           </Typography>
           <Typography color="text.secondary" gutterBottom>
            just see sec
