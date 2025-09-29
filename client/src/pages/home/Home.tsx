@@ -1,5 +1,5 @@
 import { Box, Button, Card, CardContent, Typography } from "@mui/material";
-import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
+import { NextVisits } from "./NextVisits";
 
 export default function Home() {
   return (
@@ -12,9 +12,7 @@ export default function Home() {
           <Typography color="text.secondary" gutterBottom>
            just see sec
           </Typography>
-          <Button startIcon={<RocketLaunchIcon />}>
-            Get Started
-          </Button>
+         <NextVisits/>
         </CardContent>
       </Card>
     </Box>

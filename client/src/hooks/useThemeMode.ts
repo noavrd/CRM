@@ -20,6 +20,7 @@ function readStoredMode(): ThemeMode | null {
 }
 
 export function useThemeMode() {
+  // initial: localStorage -> system -> light
   const [mode, setMode] = React.useState<ThemeMode>(() => {
     return readStoredMode() ?? getSystemPref() ?? "light";
   });
