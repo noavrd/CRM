@@ -1,8 +1,21 @@
 import { Outlet } from "react-router-dom";
-import { AppBar, Box, Container, Toolbar, Typography } from "@mui/material";
-import ThemeToggle from "../components/ThemeToggle";
+import {
+  AppBar,
+  Box,
+  Container,
+  Toolbar,
+  Typography,
+  IconButton,
+  Tooltip
+} from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import ThemeToggle from "@/components/ThemeToggle";
+import LogoutIcon from "@mui/icons-material/Logout";
+import { signOut } from "@/lib/firebase";
 
 export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
+  const theme = useTheme();
+
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
       <AppBar position="static" elevation={0}>
@@ -11,6 +24,12 @@ export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
             CRM
           </Typography>
           <ThemeToggle onToggle={toggleMode} />
+          {/* move this later to drop down with name */}
+          <Tooltip title="התנתקות">
+            <IconButton color="inherit" onClick={() => signOut()}>
+              <LogoutIcon />
+            </IconButton>
+          </Tooltip>
         </Toolbar>
       </AppBar>
 

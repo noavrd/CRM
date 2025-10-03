@@ -1,6 +1,12 @@
 import { initializeApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
-import { getAnalytics, isSupported } from "firebase/analytics";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut as fbSignOut,
+  onAuthStateChanged
+} from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -9,15 +15,30 @@ const firebaseConfig = {
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
-//   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID, 
 };
 
 const app = getApps().length ? getApps()[0]! : initializeApp(firebaseConfig);
 
 export const db = getFirestore(app);
+export const auth = getAuth(app);
 
-//analytics - not sure 
-// export let analytics: ReturnType<typeof getAnalytics> | null = null;
-// isSupported().then((yes) => {
-//   if (yes) analytics = getAnalytics(app);
-// });
+const provider = new GoogleAuthProvider();
+
+export async function signInWithGoogle() {
+  const cred = await signInWithPopup(auth, provider);
+  return cred.user;
+}
+
+export async function signOut() {
+  await fbSignOut(auth);
+}
+
+export async function getIdToken(forceRefresh = false) {
+  const u = auth.currentUser;
+  return u ? u.getIdToken(forceRefresh) : null;
+}
+
+//optional - listen to changes while sign in
+export function onAuth(cb: (user: import("firebase/auth").User|null) => void) {
+  return onAuthStateChanged(auth, cb);
+}

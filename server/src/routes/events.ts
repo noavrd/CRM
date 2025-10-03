@@ -3,6 +3,7 @@ import { adminDb } from "../firebaseAdmin";
 import { Timestamp } from "firebase-admin/firestore";
 
 const router = Router();
+// need to see how to add to google calender
 
 // GET /api/events/month?year=2025&month=10
 router.get("/month", async (req, res) => {
