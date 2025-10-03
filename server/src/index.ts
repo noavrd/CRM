@@ -1,11 +1,13 @@
-import "dotenv/config"; // כדי לקרוא .env
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import { adminDb } from "./firebaseAdmin";
+import { registerRoutes } from "./routes";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+registerRoutes(app);
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
