@@ -4,39 +4,96 @@ import { Timestamp } from "firebase-admin/firestore";
 
 const router = Router();
 
-// GET /api/tasks/open
-router.get("/open", async (req, res) => {
+// get all tasks for user
+router.get("/", async (req, res) => {
   try {
     const userId = (req as any).userId as string;
-    const snap = await adminDb.collection("tasks")
+
+    // maybe add filter by status
+    const snap = await adminDb
+      .collection("tasks")
       .where("userId", "==", userId)
-      .where("done", "==", false)
-      .orderBy("due", "asc")
+      .orderBy("dueDate", "asc") 
       .get();
 
-    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+    const items = snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        projectId: data.projectId ?? "",
+        assignee: data.assignee ?? null,
+        description: data.description ?? "",
+        status: data.status ?? "todo",
+        dueDate: data.dueDate ? (data.dueDate as Timestamp).toDate().toISOString().slice(0, 10) : null,
+      };
+    });
+
+    res.json(items);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
-// POST /api/tasks { title, due(ISO) }
+// create new task
 router.post("/", async (req, res) => {
   try {
     const userId = (req as any).userId as string;
-    const { title, due } = req.body;
-    if (!title || !due) return res.status(400).json({ error: "title & due required" });
+    const { projectId, assignee, dueDate, description, status } = req.body || {};
+
+    if (!projectId) return res.status(400).json({ error: "projectId is required" });
+    if (!description || typeof description !== "string" || !description.trim()) {
+      return res.status(400).json({ error: "description is required" });
+    }
+
+    const dueTs =
+      dueDate ? Timestamp.fromDate(new Date(dueDate)) : null;
 
     const ref = await adminDb.collection("tasks").add({
       userId,
-      title,
-      due: Timestamp.fromDate(new Date(due)),
-      done: false,
+      projectId,
+      assignee: assignee ?? null,
+      description: description.trim(),
+      status: status ?? "todo",
+      dueDate: dueTs,
       createdAt: Timestamp.now(),
     });
+
     res.json({ id: ref.id });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
-// PUT /api/tasks/:id/done
+// update task
+router.put("/:id", async (req, res) => {
+  try {
+    const userId = (req as any).userId as string;
+    const ref = adminDb.collection("tasks").doc(req.params.id);
+    const doc = await ref.get();
+
+    if (!doc.exists || doc.get("userId") !== userId) {
+      return res.status(404).json({ error: "not found" });
+    }
+
+    const patch: any = {};
+    const { projectId, assignee, dueDate, description, status } = req.body || {};
+
+    if (projectId !== undefined) patch.projectId = projectId;
+    if (assignee !== undefined) patch.assignee = assignee;
+    if (description !== undefined) patch.description = String(description);
+    if (status !== undefined) patch.status = status;
+    if (dueDate !== undefined) {
+      patch.dueDate = dueDate ? Timestamp.fromDate(new Date(dueDate)) : null;
+    }
+
+    await ref.update(patch);
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// mark as done
 router.put("/:id/done", async (req, res) => {
   try {
     const userId = (req as any).userId as string;
@@ -44,9 +101,11 @@ router.put("/:id/done", async (req, res) => {
     const doc = await ref.get();
     if (!doc.exists || doc.get("userId") !== userId) return res.status(404).json({ error: "not found" });
 
-    await ref.update({ done: true });
+    await ref.update({ status: "done" });
     res.json({ ok: true });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 export default router;

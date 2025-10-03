@@ -2,7 +2,7 @@ import { Box, Grid } from "@mui/material";
 import LeadsCard from "./leads/LeadsCard";
 import ProjectsDonutCard from "./projects/ProjectsDonutCard";
 import TasksListCard from "./tasks/TasksListCard";
-import CalendarCard from "./CalendarCard";
+import CalendarCard from "./events/CalendarCard";
 import  NextVisits from "./NextVisits/NextVisitsCard";
 
 export default function Home() {

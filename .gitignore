@@ -2,4 +2,4 @@
 /client/.env.local
 /server/node_modules
 /server/.env
-server/.serviceAccountKey*
+/server/serviceAccountKey.json

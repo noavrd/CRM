@@ -18,11 +18,11 @@ export default function NextVisitsCard() {
   const onSubmit = async (data: VisitForm) => {
     try {
       await api("/api/visits", { method: "POST", body: JSON.stringify(data) });
-      success("📅 ביקור נשמר");
+      success(" ביקור נשמר");
       setOpen(false);
       await load();
     } catch {
-      error("❌ שגיאה בשמירת ביקור");
+      error(" שגיאה בשמירת ביקור");
     }
   };
 

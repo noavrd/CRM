@@ -18,11 +18,11 @@ export default function CalendarCard() {
   const onSubmit = async (data: EventForm) => {
     try {
       await api("/api/events", { method: "POST", body: JSON.stringify(data) });
-      success("📌 אירוע נשמר");
+      success(" אירוע נשמר");
       setOpen(false);
       await load();
     } catch {
-      error("❌ שגיאה בשמירת אירוע");
+      error(" שגיאה בשמירת אירוע");
     }
   };
 

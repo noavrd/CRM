@@ -13,7 +13,7 @@ function loadServiceAccount() {
       }
       return cert(obj);
     } catch (e) {
-      console.error("❌ Failed to read GOOGLE_APPLICATION_CREDENTIALS file");
+      console.error(" Failed to read GOOGLE_APPLICATION_CREDENTIALS file");
       throw e;
     }
   }

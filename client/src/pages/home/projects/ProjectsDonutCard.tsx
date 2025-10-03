@@ -17,7 +17,7 @@ export default function ProjectsDonutCard() {
     const res: ProjectStats = await api("/api/projects/stats");
     setCount(res.total || 0);
   };
-  
+
   useEffect(() => { load(); }, []);
 
   const onSubmit = async (data: ProjectForm) => {
@@ -27,7 +27,7 @@ export default function ProjectsDonutCard() {
       setOpen(false);
       await load();
     } catch {
-      error("❌ שגיאה בשמירת פרויקט");
+      error(" שגיאה בשמירת פרויקט");
     }
   };
 
