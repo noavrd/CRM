@@ -2,6 +2,7 @@ import { createTheme, type Theme } from "@mui/material/styles";
 
 export function getTheme(mode: "light" | "dark"): Theme {
   return createTheme({
+    direction: 'rtl',
     palette: {
       mode,
       primary: { main: "#1976d2" },
@@ -26,5 +27,6 @@ export function getTheme(mode: "light" | "dark"): Theme {
     components: {
       MuiButton: { defaultProps: { variant: "contained" } },
     },
+    
   });
 }

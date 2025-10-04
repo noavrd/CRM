@@ -11,11 +11,13 @@
     "@fontsource/roboto": "^5.2.8",
     "@mui/icons-material": "^7.3.2",
     "@mui/material": "^7.3.2",
+    "@mui/stylis-plugin-rtl": "^7.3.3",
     "firebase": "^12.3.0",
     "luxon": "^3.7.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router-dom": "^7.9.3"
+    "react-router-dom": "^7.9.3",
+    "stylis": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.4",
@@ -23,6 +25,7 @@
     "@types/node": "^20.19.17",
     "@types/react": "^19.1.15",
     "@types/react-dom": "^19.1.9",
+    "@types/stylis": "^4.2.7",
     "@vitejs/plugin-react": "^4.3.4",
     "tailwindcss": "^4.1.4",
     "typescript": "^5.8.3",
