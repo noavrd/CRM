@@ -9,7 +9,10 @@ import {
   Fab,
   Button,
   Tooltip,
+  Skeleton,
   type SxProps,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
@@ -45,72 +48,84 @@ export default function DashboardCard({
   contentSx,
   minHeight = 220,
 }: Props) {
+  const theme = useTheme();
+  const isRTL = theme.direction === "rtl";
+  const downSm = useMediaQuery(theme.breakpoints.down("sm"));
+
   return (
     <Card
       variant="outlined"
       sx={{
         position: "relative",
-        borderRadius: 6,
+        borderRadius: 3,
         display: "flex",
         flexDirection: "column",
-        pt: 1,
+        overflow: "hidden",
         ...sx,
       }}
     >
-      {/* כפתורי עליון */}
+      {/* פס כלים עליון (מכבד RTL) */}
       <Box
         sx={{
           position: "absolute",
-          top: 12, // הזזנו מעט למטה
-          left: 25, // פנימה יותר
-          right: 25, // פנימה יותר
+          top: 12,
+          insetInlineStart: 18,
+          insetInlineEnd: 18,
           display: "flex",
-          justifyContent: "space-between",
           alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1,
+          zIndex: 1,
           pointerEvents: "none",
         }}
       >
-        <Box sx={{ pointerEvents: "auto" }}>
-          {onShowAll && (
-            <Button
-              size="small"
-              variant="contained"
-              startIcon={<ArrowBackIosNewIcon sx={{ fontSize: 14 }} />}
-              onClick={onShowAll}
-              sx={{
-                borderRadius: 20,
-                textTransform: "none",
-                px: 1.6,
-                py: 0.4,
-                boxShadow: 1,
-              }}
-            >
-              {showAllLabel}
-            </Button>
-          )}
-        </Box>
-
-        <Box sx={{ pointerEvents: "auto" }}>
+        {/* כפתור הוספה בקצה inline-start */}
+        <Box sx={{ order: isRTL ? 1 : 2, pointerEvents: "auto" }}>
           {onAdd && (
             <Tooltip title={addLabel}>
               <Fab
                 color="primary"
-                size="small"
+                size={downSm ? "medium" : "small"}
                 onClick={onAdd}
-                sx={{
-                  boxShadow: 3,
-                }}
                 aria-label={addLabel}
+                sx={{ boxShadow: 2 }}
               >
                 <AddIcon />
               </Fab>
             </Tooltip>
           )}
         </Box>
+
+        {/* כפתור הצג הכל בקצה inline-end */}
+        <Box sx={{ order: isRTL ? 2 : 1, pointerEvents: "auto" }}>
+          {onShowAll && (
+            <Button
+              size="small"
+              variant="contained" // ← תוקן: בלי "as any"
+              onClick={onShowAll}
+              startIcon={
+                <ArrowBackIosNewIcon
+                  sx={{
+                    fontSize: 14,
+                    transform: isRTL ? "scaleX(-1)" : "none",
+                  }}
+                />
+              }
+              sx={{
+                borderRadius: 20,
+                textTransform: "none",
+                px: 1.6,
+                py: 0.4,
+              }}
+            >
+              {showAllLabel}
+            </Button>
+          )}
+        </Box>
       </Box>
 
       {/* כותרת */}
-      <Box sx={{ pt: 6, pb: 1.2, px: 2 }}>
+      <Box sx={{ pt: downSm ? 7 : 6, pb: 1, px: { xs: 1.75, sm: 2.25 } }}>
         <Stack direction="row" alignItems="center" justifyContent="center">
           <Typography
             variant="h6"
@@ -120,7 +135,7 @@ export default function DashboardCard({
           </Typography>
           {headerActions}
         </Stack>
-        <Divider sx={{ mt: 1.2 }} />
+        <Divider sx={{ mt: 1 }} />
       </Box>
 
       {/* תוכן */}
@@ -130,12 +145,16 @@ export default function DashboardCard({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          py: 2,
+          px: { xs: 1.5, sm: 2.25 },
+          py: { xs: 1.25, sm: 2 },
           ...contentSx,
         }}
       >
         {loading ? (
-          <Typography color="text.secondary">טוען…</Typography>
+          <Stack spacing={1} sx={{ width: "100%" }} alignItems="center">
+            <Skeleton variant="text" width={downSm ? 90 : 120} height={28} />
+            <Skeleton variant="rectangular" width="92%" height={18} />
+          </Stack>
         ) : empty ? (
           emptyState ?? (
             <Typography color="text.secondary">אין נתונים להצגה</Typography>
