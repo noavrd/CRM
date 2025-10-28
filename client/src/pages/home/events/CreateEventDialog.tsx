@@ -1,32 +1,232 @@
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Stack } from "@mui/material";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
+  Grid,
+  Stack,
+  MenuItem,
+  InputAdornment,
+} from "@mui/material";
+import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
+import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import { useState } from "react";
 
-export type EventForm = { title: string; date: string };
+export type EventForm = {
+  title: string;
+  date: string; // "YYYY-MM-DD"
+  time?: string; // "HH:mm"
+  contact?: {
+    role?: "client" | "broker" | "lawyer" | "other";
+    name?: string;
+    phone?: string;
+  };
+  notes?: string;
+  projectId?: string;
+};
+
+const ROLE_OPTIONS = [
+  { value: "client", label: "לקוח" },
+  { value: "broker", label: "מתווך" },
+  { value: "lawyer", label: "עו״ד" },
+  { value: "other", label: "אחר" },
+] as const;
 
 export default function CreateEventDialog({
-  open, onClose, onSubmit
+  open,
+  onClose,
+  onSubmit,
 }: {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: EventForm) => Promise<void>;
 }) {
-  const [form, setForm] = useState<EventForm>({ title: "", date: "" });
+  const [form, setForm] = useState<EventForm>({
+    title: "",
+    date: "",
+    time: "",
+    contact: { role: undefined, name: "", phone: "" },
+    notes: "",
+    projectId: "",
+  });
+  const [saving, setSaving] = useState(false);
 
-  const close = () => { setForm({ title: "", date: "" }); onClose(); };
-  const save = async () => { await onSubmit(form); setForm({ title: "", date: "" }); };
+  const reset = () =>
+    setForm({
+      title: "",
+      date: "",
+      time: "",
+      contact: { role: undefined, name: "", phone: "" },
+      notes: "",
+      projectId: "",
+    });
+
+  const close = () => {
+    reset();
+    onClose();
+  };
+
+  const save = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await onSubmit(form); // חייב לזרוק שגיאה אם ה-API נכשל
+      // דוחה את הסגירה לטיקט הבא כדי להימנע מ-unmount בזמן רנדר
+      setTimeout(() => {
+        reset();
+        onClose();
+      }, 0);
+    } catch (err: any) {
+      console.error("Failed to create event:", err);
+    } finally {
+      // אם ההורה החליט להשאיר פתוח (שגיאה) – נאפשר שמירה שוב
+      setSaving(false);
+    }
+  };
+
+  const canSave = Boolean(form.title && form.date);
 
   return (
-    <Dialog open={open} onClose={close} fullWidth>
+    <Dialog open={open} onClose={close} fullWidth maxWidth="md">
       <DialogTitle>אירוע חדש</DialogTitle>
-      <DialogContent dividers>
-        <Stack spacing={2}>
-          <TextField label="כותרת" fullWidth value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
-          <TextField type="date" fullWidth value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
-        </Stack>
+      <DialogContent dividers sx={{ pt: 2 }}>
+        <Grid container spacing={2}>
+          <Grid item xs={12}>
+            <TextField
+              label="כותרת אירוע"
+              fullWidth
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+            />
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <TextField
+              type="date"
+              label="תאריך אירוע"
+              InputLabelProps={{ shrink: true }}
+              fullWidth
+              value={form.date}
+              onChange={(e) => setForm({ ...form, date: e.target.value })}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <CalendarMonthOutlinedIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              type="time"
+              label="שעת אירוע"
+              InputLabelProps={{ shrink: true }}
+              fullWidth
+              value={form.time || ""}
+              onChange={(e) => setForm({ ...form, time: e.target.value })}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <AccessTimeOutlinedIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <TextField
+              select
+              label="תפקיד איש קשר"
+              fullWidth
+              value={form.contact?.role ?? ""}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  contact: {
+                    ...(form.contact || {}),
+                    role: e.target.value as any,
+                  },
+                })
+              }
+            >
+              <MenuItem value="">{/* ריק */}</MenuItem>
+              {ROLE_OPTIONS.map((r) => (
+                <MenuItem key={r.value} value={r.value}>
+                  {r.label}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <TextField
+              label="שם איש קשר"
+              fullWidth
+              value={form.contact?.name || ""}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  contact: { ...(form.contact || {}), name: e.target.value },
+                })
+              }
+            />
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <TextField
+              label="טלפון איש קשר"
+              fullWidth
+              value={form.contact?.phone || ""}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  contact: { ...(form.contact || {}), phone: e.target.value },
+                })
+              }
+            />
+          </Grid>
+
+          <Grid item xs={12}>
+            <TextField
+              label="הערות אירוע"
+              fullWidth
+              multiline
+              minRows={3}
+              value={form.notes || ""}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            />
+          </Grid>
+
+          <Grid item xs={12}>
+            <TextField
+              label="בחירת פרויקט (מזהה/שם – אופציונלי)"
+              fullWidth
+              value={form.projectId || ""}
+              onChange={(e) => setForm({ ...form, projectId: e.target.value })}
+            />
+          </Grid>
+        </Grid>
       </DialogContent>
+
       <DialogActions>
-        <Button onClick={close}>בטל</Button>
-        <Button disabled={!form.title || !form.date} variant="contained" onClick={save}>שמור</Button>
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{ width: "100%", justifyContent: "space-between" }}
+        >
+          <Button onClick={close} disabled={saving}>
+            ביטול
+          </Button>
+          <Button
+            variant="contained"
+            disabled={!canSave || saving}
+            onClick={save}
+          >
+            {saving ? "שומרת..." : "שמירה"}
+          </Button>
+        </Stack>
       </DialogActions>
     </Dialog>
   );
