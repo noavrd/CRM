@@ -7,37 +7,52 @@ const router = Router();
 // get all tasks for user
 router.get("/", async (req, res) => {
   try {
-    const userId = (req as any).userId as string;
+    const userId = (req as any).userId as string | undefined;
+    if (!userId) return res.status(401).json({ error: "unauthorized" });
 
-    // maybe add filter by status
+    // maybe add filter by status - check
     const snap = await adminDb
       .collection("tasks")
       .where("userId", "==", userId)
-      .orderBy("dueDate", "asc") 
       .get();
 
+    // בונים מערך גולמי
     const items = snap.docs.map((d) => {
       const data = d.data();
+      const dueTs = (data.dueDate as Timestamp | null | undefined) ?? null;
       return {
         id: d.id,
         projectId: data.projectId ?? "",
         assignee: data.assignee ?? null,
         description: data.description ?? "",
         status: data.status ?? "todo",
-        dueDate: data.dueDate ? (data.dueDate as Timestamp).toDate().toISOString().slice(0, 10) : null,
+        // נחזיר כ-YYYY-MM-DD כדי לשמור עקביות עם ה-FE
+        dueDate: dueTs ? dueTs.toDate().toISOString().slice(0, 10) : null,
       };
     });
 
-    res.json(items);
+    // מיון בזיכרון: תאריכים קודם, null בסוף
+    items.sort((a, b) => {
+      if (!a.dueDate && !b.dueDate) return 0;
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      return a.dueDate.localeCompare(b.dueDate);
+    });
+
+    res.json({ items });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error("GET /api/tasks error:", e);
+    res.status(500).json({ error: e?.message || "internal error" });
   }
 });
+
 
 // create new task
 router.post("/", async (req, res) => {
   try {
-    const userId = (req as any).userId as string;
+    const userId = (req as any).userId as string | undefined;
+    if (!userId) return res.status(401).json({ error: "unauthorized" });
+
     const { projectId, assignee, dueDate, description, status } = req.body || {};
 
     if (!projectId) return res.status(400).json({ error: "projectId is required" });
@@ -45,8 +60,8 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "description is required" });
     }
 
-    const dueTs =
-      dueDate ? Timestamp.fromDate(new Date(dueDate)) : null;
+    // מצפות ל-YYYY-MM-DD או ISO מלא; new Date() יטפל בשניהם
+    const dueTs = dueDate ? Timestamp.fromDate(new Date(dueDate)) : null;
 
     const ref = await adminDb.collection("tasks").add({
       userId,
@@ -67,7 +82,9 @@ router.post("/", async (req, res) => {
 // update task
 router.put("/:id", async (req, res) => {
   try {
-    const userId = (req as any).userId as string;
+    const userId = (req as any).userId as string | undefined;
+    if (!userId) return res.status(401).json({ error: "unauthorized" });
+
     const ref = adminDb.collection("tasks").doc(req.params.id);
     const doc = await ref.get();
 
@@ -96,7 +113,9 @@ router.put("/:id", async (req, res) => {
 // mark as done
 router.put("/:id/done", async (req, res) => {
   try {
-    const userId = (req as any).userId as string;
+    const userId = (req as any).userId as string | undefined;
+    if (!userId) return res.status(401).json({ error: "unauthorized" });
+
     const ref = adminDb.collection("tasks").doc(req.params.id);
     const doc = await ref.get();
     if (!doc.exists || doc.get("userId") !== userId) return res.status(404).json({ error: "not found" });

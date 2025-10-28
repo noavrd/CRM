@@ -12,7 +12,7 @@ export type ProjectOption = { id: string; name: string };
 type Props = {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: Task) => Promise<void>;        
+  onSubmit: (data: Task) => Promise<void>;
   loading?: boolean;
   projects?: ProjectOption[];
   currentUserName?: string | null;
@@ -25,6 +25,8 @@ const emptyForm: Task = {
   description: "",
   status: "todo",
 };
+
+const STATUS_OPTIONS: Task["status"][] = ["todo", "in-progress", "done"];
 
 export default function CreateTaskDialog({
   open,
@@ -48,9 +50,8 @@ export default function CreateTaskDialog({
     onClose();
   };
 
-  // שימי לב: פה לא ממירים ל-string. ההמרה ל-API תיעשה בכרטיס (TasksListCard) לפני הקריאה לשרת.
-  const save = async (override?: Partial<Task>) => {
-    const payload: Task = { ...form, ...(override ?? {}) };
+  const save = async () => {
+    const payload: Task = { ...form };
     await onSubmit(payload);
     reset();
   };
@@ -61,20 +62,21 @@ export default function CreateTaskDialog({
 
       <DialogContent dividers sx={{ pt: 2 }}>
         <Box dir="rtl">
-          <Typography variant="h6" sx={{ mb: 1 }}>בחירת פרויקט</Typography>
+          <Typography variant="h6" sx={{ mb: 1 }}>בחירת משימה</Typography>
 
           <Grid container spacing={2} sx={{ mb: 2 }}>
             <Grid item xs={12} md={8}>
               <TextField
-                select
+                // select
                 fullWidth
-                label="שם פרויקט"
+                label="כותרת"
                 value={form.projectId}
                 onChange={(e) => setForm((f) => ({ ...f, projectId: e.target.value }))}
               >
+                {/* add to choose project
                 {projects.map((p) => (
                   <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
-                ))}
+                ))} */}
               </TextField>
             </Grid>
 
@@ -84,7 +86,7 @@ export default function CreateTaskDialog({
                 fullWidth
                 label="תאריך יעד לביצוע"
                 InputLabelProps={{ shrink: true }}
-                value={form.dueDate?.toISODate() ?? ""}             // ✅ מציגים כ-YYYY-MM-DD
+                value={form.dueDate?.toISODate() ?? ""}
                 onChange={(e) => {
                   const iso = e.target.value;
                   const dt = DateTime.fromISO(iso);
@@ -93,13 +95,31 @@ export default function CreateTaskDialog({
               />
             </Grid>
 
-            <Grid item xs={12} md={8}>
+            <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
                 label="משויך לשמאי"
                 value={form.assignee ?? ""}
                 onChange={(e) => setForm((f) => ({ ...f, assignee: e.target.value }))}
               />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <TextField
+                select
+                fullWidth
+                label="סטטוס"
+                value={form.status}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, status: e.target.value as Task["status"] }))
+                }
+              >
+                {STATUS_OPTIONS.map((s) => (
+                  <MenuItem key={s} value={s}>
+                    {s === "todo" ? "פתוחה" : s === "in-progress" ? "בתהליך" : "בוצעה"}
+                  </MenuItem>
+                ))}
+              </TextField>
             </Grid>
           </Grid>
 
@@ -124,24 +144,12 @@ export default function CreateTaskDialog({
           <Button
             variant="contained"
             disabled={!canSave || loading}
-            onClick={() => save()}
+            onClick={save}
             sx={{ ml: 1 }}
           >
             שמירה
           </Button>
         </Box>
-
-        <Button
-          variant="contained"
-          color="error"
-          disabled={!canSave || loading}
-          onClick={async () => {
-            await save({ status: "todo" });
-            onClose();
-          }}
-        >
-          לביצוע
-        </Button>
       </DialogActions>
     </Dialog>
   );

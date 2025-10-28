@@ -41,7 +41,7 @@ export default function LeadsCard() {
       />
       <CardContent>
         <Stack direction="row" alignItems="center" spacing={2}>
-          <MapIcon fontSize="large" />
+          {/* <MapIcon fontSize="large" /> */}
           <div>
             <Typography variant="h4">{stats.total}</Typography>
             <Typography variant="body2" color="text.secondary">

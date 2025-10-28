@@ -10,26 +10,62 @@ import { useSnackbar } from "@/hooks/useSnackbar";
 import { type Task } from "../types";
 import { DateTime } from "luxon";
 
+type ServerTask = {
+  id: string;
+  projectId: string;
+  assignee: string | null;
+  description: string;
+  status: "todo" | "in-progress" | "done";
+  dueDate: string | null;
+};
+type TasksResponse = { items: ServerTask[] };
+
 export default function TasksListCard() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [open, setOpen] = useState(false);
   const { success, error } = useSnackbar();
 
-  const load = async () => {
-    try {
-      const res = await api("/api/tasks");
-      // מצפים שמגיע [{ id, projectId, description, status, dueDate: string?, assignee? }, ...]
-      const items = Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
-      const normalized: Task[] = items.map((t: any) => ({
-        ...t,
-        // המרה ל-Luxon אם יש dueDate
-        dueDate: t?.dueDate ? DateTime.fromISO(t.dueDate) : undefined,
-      }));
-      setTasks(normalized);
-    } catch {
-      error("שגיאה בטעינת משימות");
-    }
-  };
+  const toOptionalString = (v: unknown): string | undefined =>
+    typeof v === "string" && v.trim() !== "" ? v : undefined;
+
+  // מחזיר במפורש DateTime | undefined כדי לא להפחיד את TS
+  const toDateTime = (s: string | null): DateTime | undefined =>
+    s ? DateTime.fromISO(s) : undefined;
+
+const load = async () => {
+  try {
+    const res = await api("/api/tasks"); // חשוב שה- api ישלח credentials אם auth מבוסס cookies
+    const itemsRaw = Array.isArray((res as any)?.items)
+      ? (res as any).items
+      : Array.isArray(res)
+      ? (res as any)
+      : [];
+
+    const normalized: Task[] = itemsRaw.map((t: any) => ({
+      id: String(t?.id ?? ""),
+      projectId: String(t?.projectId ?? ""),
+      assignee: typeof t?.assignee === "string" && t.assignee.trim() ? t.assignee : undefined, // null->undefined
+      description: String(t?.description ?? ""),
+      status: (t?.status ?? "todo") as Task["status"],
+      dueDate: t?.dueDate ? DateTime.fromISO(String(t.dueDate)) : undefined,
+    }));
+
+    normalized.sort((a, b) => {
+      const ad = a.dueDate ? a.dueDate.toMillis() : Number.MAX_SAFE_INTEGER;
+      const bd = b.dueDate ? b.dueDate.toMillis() : Number.MAX_SAFE_INTEGER;
+      return ad - bd;
+    });
+
+    setTasks(normalized);
+  } catch (e: any) {
+    console.error("load tasks error:", e);
+    const serverMsg =
+      e?.response?.error ||
+      e?.message ||
+      "שגיאה בטעינת משימות";
+    error(serverMsg);
+  }
+};
 
   useEffect(() => {
     load();
@@ -37,9 +73,9 @@ export default function TasksListCard() {
 
   const onSubmit = async (data: Task) => {
     try {
-      // לפני שליחה לשרת, ממירים DateTime -> ISO (אם יש)
       const payload = {
         ...data,
+        // שולחת לשרת YYYY-MM-DD, תואם למה שהוא מחזיר
         dueDate: data.dueDate ? data.dueDate.toISODate() : undefined,
       };
       await api("/api/tasks", { method: "POST", body: JSON.stringify(payload) });
