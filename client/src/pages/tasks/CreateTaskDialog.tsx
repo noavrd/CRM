@@ -12,9 +12,7 @@ import {
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import { DateTime } from "luxon";
-import { type Task } from "../types";
-
-export type ProjectOption = { id: string; name: string };
+import { type Task, type ProjectOption } from "../types";
 
 type Props = {
   open: boolean;
@@ -55,7 +53,6 @@ export default function CreateTaskDialog({
 
   const reset = () =>
     setForm({ ...emptyForm, assignee: currentUserName ?? "" });
-
   const handleClose = () => {
     reset();
     onClose();
@@ -80,18 +77,22 @@ export default function CreateTaskDialog({
           <Grid container spacing={2} sx={{ mb: 2 }}>
             <Grid item xs={12} md={8}>
               <TextField
-                // select
+                select
                 fullWidth
-                label="כותרת"
+                label="פרויקט"
                 value={form.projectId}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, projectId: e.target.value }))
                 }
+                helperText={
+                  !projects.length ? "אין פרויקטים לבחירה עדיין" : " "
+                }
               >
-                {/* add to choose project
                 {projects.map((p) => (
-                  <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
-                ))} */}
+                  <MenuItem key={p.id} value={p.id}>
+                    {p.name}
+                  </MenuItem>
+                ))}
               </TextField>
             </Grid>
 
@@ -156,7 +157,7 @@ export default function CreateTaskDialog({
                 fullWidth
                 multiline
                 minRows={6}
-                label="כתבו משימה חדשה…"
+                label="כתבי משימה חדשה…"
                 value={form.description}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, description: e.target.value }))

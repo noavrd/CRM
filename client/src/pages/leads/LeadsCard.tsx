@@ -5,15 +5,10 @@ import DashboardCard from "@/components/dashboard/DashboardCard";
 import { api } from "@/api/http";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import CreateLeadDialog from "./CreateLeadDialog";
-
-type LeadStats = {
-  total: number;
-  convertedCount: number;
-  conversionRate?: number;
-};
+import type { Lead, LeadsStats } from "../types";
 
 export default function LeadsCard() {
-  const [stats, setStats] = useState<LeadStats | null>(null);
+  const [stats, setStats] = useState<LeadsStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const { success, error } = useSnackbar();
@@ -22,7 +17,7 @@ export default function LeadsCard() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await api<LeadStats>("/api/leads/stats");
+      const res = await api<LeadsStats>("/api/leads/stats");
       const total = res?.total ?? 0;
       const converted = res?.convertedCount ?? 0;
       const rate =
@@ -33,7 +28,7 @@ export default function LeadsCard() {
           ? Math.round((converted / total) * 100)
           : 0;
       setStats({ total, convertedCount: converted, conversionRate: rate });
-    } catch (e) {
+    } catch {
       error("שגיאה בטעינת נתוני לידים");
     } finally {
       setLoading(false);
@@ -45,7 +40,7 @@ export default function LeadsCard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: Lead) => {
     try {
       await api("/api/leads", { method: "POST", body: JSON.stringify(data) });
       success("הליד נשמר");

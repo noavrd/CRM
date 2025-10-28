@@ -2,25 +2,7 @@ import { TextField, Chip } from "@mui/material";
 import TableShell, { type Column } from "@/components/table/TableShell";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/api/http";
-
-type UiTask = {
-  id: string;
-  title: string;
-  dueDate?: string; // ISO
-  status?: "open" | "in_progress" | "done";
-};
-
-// צורת השרת האפשרית (כפי שנראתה במקומות אחרים בקוד)
-type ServerTask = {
-  id: string;
-  projectId?: string;
-  assignee?: string | null;
-  description?: string; // -> title
-  title?: string; // fallback
-  status?: "todo" | "in-progress" | "done";
-  dueDate?: string | null; // ISO or null
-};
-type TasksResponse = { items: ServerTask[] };
+import type { UiTask, UiTaskStatus, ServerTask, TasksResponse } from "../types";
 
 export default function TasksPage() {
   const [rows, setRows] = useState<UiTask[]>([]);
@@ -30,33 +12,27 @@ export default function TasksPage() {
     (async () => {
       try {
         const res = await api<TasksResponse | ServerTask[]>("/api/tasks");
-
-        // תמיד נהפוך למערך של ServerTask
         const raw: ServerTask[] = Array.isArray((res as any)?.items)
           ? (res as any).items
           : Array.isArray(res)
           ? (res as any)
           : [];
 
-        // נרמול לשכבת ה־UI
         const normalized: UiTask[] = raw.map((t) => ({
           id: String(t?.id ?? ""),
-          title: String(t?.title ?? t?.description ?? "").trim(),
+          title: String((t as any)?.title ?? t?.description ?? "").trim(),
           dueDate: t?.dueDate ?? undefined,
           status:
             t?.status === "done"
               ? "done"
               : t?.status === "in-progress"
               ? "in_progress"
-              : "open", // todo ועוד – כברירת מחדל "open"
+              : "open",
         }));
 
         setRows(normalized);
-      } catch (e) {
-        // במקרה של שגיאה – לא להפיל את העמוד
+      } catch {
         setRows([]);
-        // אופציונלי: הציגי סנackbar/console
-        // console.error(e);
       }
     })();
   }, []);
@@ -69,9 +45,9 @@ export default function TasksPage() {
       : list;
   }, [rows, q]);
 
-  const statusChip = (s?: UiTask["status"]) => {
+  const statusChip = (s?: UiTaskStatus) => {
     const map: Record<
-      NonNullable<UiTask["status"]>,
+      NonNullable<UiTaskStatus>,
       { label: string; color: "default" | "warning" | "success" }
     > = {
       open: { label: "פתוחה", color: "warning" },

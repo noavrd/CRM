@@ -5,18 +5,8 @@ import CreateTaskDialog from "./CreateTaskDialog";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import DashboardCard from "@/components/dashboard/DashboardCard";
 import { useNavigate } from "react-router-dom";
-import { type Task } from "../types";
+import { type Task, type TasksResponse } from "../types";
 import { DateTime } from "luxon";
-
-type ServerTask = {
-  id: string;
-  projectId: string;
-  assignee: string | null;
-  description: string;
-  status: "todo" | "in-progress" | "done";
-  dueDate: string | null;
-};
-type TasksResponse = { items: ServerTask[] };
 
 export default function TasksListCard() {
   const [tasks, setTasks] = useState<Task[]>([]);

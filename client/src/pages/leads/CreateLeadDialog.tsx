@@ -20,42 +20,13 @@ import {
 
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import type { Lead } from "../types";
+import { defaultLeadForm } from "../defaultValues";
 
 type Props = {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: Lead) => Promise<void>;
   loading?: boolean;
-};
-
-const defaultForm: Lead = {
-  customer: {
-    name: "",
-    phone: "",
-    email: "",
-    shippingEmail: "",
-    city: "",
-    address: "",
-    company: "",
-    description: "",
-  },
-  property: {
-    city: "",
-    street: "",
-    neighborhood: "",
-    number: "",
-    apt: "",
-    parcel: "",
-    subParcel: "",
-    block: "",
-    plot: "",
-    propertyType: "",
-    facadeType: "",
-    factor: "",
-    managerName: "",
-  },
-  payments: [{ amount: 0, description: "", plusVAT: false }],
-  notes: "",
 };
 
 export default function CreateLeadDialog({
@@ -65,7 +36,7 @@ export default function CreateLeadDialog({
   loading,
 }: Props) {
   const [tab, setTab] = useState(0);
-  const [form, setForm] = useState<Lead>(defaultForm);
+  const [form, setForm] = useState<Lead>(defaultLeadForm);
 
   const total = useMemo(
     () =>
@@ -77,7 +48,7 @@ export default function CreateLeadDialog({
   );
 
   const handleClose = () => {
-    setForm(defaultForm);
+    setForm(defaultLeadForm);
     setTab(0);
     onClose();
   };
@@ -87,7 +58,7 @@ export default function CreateLeadDialog({
 
   const save = async () => {
     await onSubmit(form);
-    setForm(defaultForm);
+    setForm(defaultLeadForm);
     setTab(0);
   };
 

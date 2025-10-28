@@ -2,11 +2,10 @@ import { useEffect, useState } from "react";
 import { List, ListItem, ListItemText, Typography } from "@mui/material";
 import { api } from "@/api/http";
 import { useSnackbar } from "@/hooks/useSnackbar";
-import CreateVisitDialog, { type VisitForm } from "./CreateVisitDialog";
+import CreateVisitDialog from "./CreateVisitDialog";
 import DashboardCard from "@/components/dashboard/DashboardCard";
 import { useNavigate } from "react-router-dom";
-
-type Visit = { id: string; title: string; date: string };
+import type { Visit, VisitForm } from "../types";
 
 export default function NextVisitsCard() {
   const [visits, setVisits] = useState<Visit[]>([]);
@@ -16,8 +15,8 @@ export default function NextVisitsCard() {
 
   const load = async () => {
     try {
-      const data = await api("/api/visits");
-      setVisits(data);
+      const data = await api<Visit[]>("/api/visits");
+      setVisits(Array.isArray(data) ? data : []);
     } catch {
       error("שגיאה בטעינת ביקורים");
     }
@@ -29,10 +28,7 @@ export default function NextVisitsCard() {
 
   const onSubmit = async (data: VisitForm) => {
     try {
-      await api("/api/visits", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      await api("/api/visits", { method: "POST", body: JSON.stringify(data) });
       success("הביקור נשמר בהצלחה");
       setOpen(false);
       await load();
@@ -59,10 +55,7 @@ export default function NextVisitsCard() {
           {visits.map((v) => (
             <ListItem
               key={v.id}
-              sx={{
-                borderBottom: "1px solid rgba(0,0,0,0.08)",
-                py: 0.6,
-              }}
+              sx={{ borderBottom: "1px solid rgba(0,0,0,0.08)", py: 0.6 }}
             >
               <ListItemText
                 primary={<Typography fontWeight={500}>{v.title}</Typography>}

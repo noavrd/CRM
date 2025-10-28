@@ -2,17 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Box, Stack, Typography } from "@mui/material";
 import { PieChart } from "@mui/x-charts/PieChart";
 import { api } from "@/api/http";
-import CreateProjectDialog, { type ProjectForm } from "./CreateProjectDialog";
+import CreateProjectDialog from "./CreateProjectDialog";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import DashboardCard from "@/components/dashboard/DashboardCard";
 import { useNavigate } from "react-router-dom";
-import {
-  PROJECT_STATUS_ORDER,
-  PROJECT_STATUS_META,
-  type ProjectStatus,
-} from "@/lib/projectStatus";
-
-type ProjectStats = { total: number } & Record<ProjectStatus, number>;
+import { PROJECT_STATUS_ORDER, PROJECT_STATUS_META } from "@/lib/projectStatus";
+import type { ProjectForm, ProjectStats } from "../types";
 
 export default function ProjectsDonutCard() {
   const [stats, setStats] = useState<ProjectStats>({
@@ -92,9 +87,7 @@ export default function ProjectsDonutCard() {
           py: 0,
         }}
       >
-        {/* עוטפת שממרכזת את כל התרשים אופקית */}
         <Box sx={{ mt: 1, display: "flex", justifyContent: "center" }}>
-          {/* קופסה בגודל קבוע שממוקמת במרכז */}
           <Box
             dir="ltr"
             sx={{
@@ -120,8 +113,6 @@ export default function ProjectsDonutCard() {
                 },
               ]}
             />
-
-            {/* טקסט במרכז הדונאט */}
             <Box
               sx={{
                 position: "absolute",

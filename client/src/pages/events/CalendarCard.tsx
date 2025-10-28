@@ -2,17 +2,9 @@ import { useEffect, useState, useMemo } from "react";
 import { Box, List, ListItem, ListItemText, Typography } from "@mui/material";
 import DashboardCard from "@/components/dashboard/DashboardCard";
 import { api } from "@/api/http";
-import CreateEventDialog, { type EventForm } from "./CreateEventDialog";
+import CreateEventDialog from "./CreateEventDialog";
 import { useSnackbar } from "@/hooks/useSnackbar";
-
-type ApiEvent = {
-  id: string;
-  title: string;
-  startsAt: string | null; // ISO
-  contact?: unknown;
-  notes?: string;
-  projectId?: string;
-};
+import type { ApiEvent, EventForm } from "../types";
 
 export default function CalendarCard() {
   const [events, setEvents] = useState<ApiEvent[]>([]);
@@ -31,7 +23,6 @@ export default function CalendarCard() {
       );
 
       const items = Array.isArray(res) ? res : [];
-      // מיון (null בסוף), ולוקחים רק הקרובים
       items.sort((a, b) => {
         const ta = a?.startsAt
           ? Date.parse(a.startsAt)
@@ -43,7 +34,7 @@ export default function CalendarCard() {
       });
 
       setEvents(items.slice(0, 6));
-    } catch (e) {
+    } catch {
       error("שגיאה בטעינת אירועים");
       setEvents([]);
     } finally {
@@ -102,9 +93,6 @@ export default function CalendarCard() {
         title="אירועים"
         onAdd={() => setOpen(true)}
         addLabel="הוספת אירוע"
-        // אם תרצי עמוד מלא בעתיד:
-        // onShowAll={() => navigate("/events")}
-        // showAllLabel="הצג הכל"
         loading={loading}
         empty={!loading && events.length === 0}
         emptyState={

@@ -2,21 +2,17 @@ import { TextField } from "@mui/material";
 import TableShell, { type Column } from "@/components/table/TableShell";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/api/http";
-
-type Visit = {
-  id: string;
-  projectName?: string;
-  contactName?: string;
-  contactPhone?: string;
-  visitDate?: string; // ISO
-  visitTime?: string; // "HH:mm"
-};
+import type { UpcomingVisit } from "../types";
 
 export default function VisitsPage() {
-  const [rows, setRows] = useState<Visit[]>([]);
+  const [rows, setRows] = useState<UpcomingVisit[]>([]);
   const [q, setQ] = useState("");
 
-  const load = async () => setRows(await api<Visit[]>("/api/visits/upcoming")); // או הנתיב הקיים אצלך
+  const load = async () => {
+    const data = await api<UpcomingVisit[]>("/api/visits/upcoming"); // או הנתיב הקיים אצלך
+    setRows(Array.isArray(data) ? data : []);
+  };
+
   useEffect(() => {
     load();
   }, []);
@@ -32,7 +28,7 @@ export default function VisitsPage() {
     [rows, q]
   );
 
-  const cols: Column<Visit>[] = [
+  const cols: Column<UpcomingVisit>[] = [
     { id: "proj", header: "פרויקט", render: (r) => r.projectName || "-" },
     {
       id: "who",

@@ -25,108 +25,8 @@ import {
   type ProjectStatus,
 } from "@/lib/projectStatus";
 import { useMemo, useState } from "react";
-
-type Status =
-  | "quote"
-  | "pre_visit"
-  | "post_visit"
-  | "in_work"
-  | "review"
-  | "done";
-
-export type ProjectForm = {
-  name: string;
-  description?: string;
-  status: Status;
-  customer: {
-    name: string;
-    phone: string;
-    email: string;
-    shippingEmail?: string;
-    city: string;
-    address?: string;
-  };
-  address: {
-    city: string;
-    street: string;
-    number: string;
-    apt?: string;
-    neighborhood?: string;
-    block?: string;
-    parcel?: string;
-    subParcel?: string;
-    plot?: string;
-  };
-  asset: {
-    floor?: string;
-    rooms?: string;
-    areaSqm?: string;
-    propertyType?: string;
-    usage?: string;
-    purpose?: string;
-    appraisalDueDate?: string;
-    submissionDueDate?: string;
-    assessor?: string;
-    referrer?: string;
-  };
-  visit: {
-    contactRole?: string;
-    contactName?: string;
-    contactPhone?: string;
-    visitDate?: string;
-    visitTime?: string;
-    notes?: string;
-  };
-  payments: { description?: string; amount?: number; plusVAT?: boolean }[];
-  notes?: string;
-};
-
-const defaultForm: ProjectForm = {
-  name: "",
-  description: "",
-  status: "active",
-  customer: {
-    name: "",
-    phone: "",
-    email: "",
-    city: "",
-    shippingEmail: "",
-    address: "",
-  },
-  address: {
-    city: "",
-    street: "",
-    number: "",
-    apt: "",
-    neighborhood: "",
-    block: "",
-    parcel: "",
-    subParcel: "",
-    plot: "",
-  },
-  asset: {
-    floor: "",
-    rooms: "",
-    areaSqm: "",
-    propertyType: "",
-    usage: "",
-    purpose: "",
-    appraisalDueDate: "",
-    submissionDueDate: "",
-    assessor: "",
-    referrer: "",
-  },
-  visit: {
-    contactRole: "",
-    contactName: "",
-    contactPhone: "",
-    visitDate: "",
-    visitTime: "",
-    notes: "",
-  },
-  payments: [],
-  notes: "",
-};
+import { defaultProjectForm } from "../defaultValues";
+import { type ProjectForm } from "../types";
 
 const steps = [
   {
@@ -166,13 +66,13 @@ export default function CreateProjectDialog({
   onClose: () => void;
   onSubmit: (data: ProjectForm) => Promise<void>;
 }) {
-  const [form, setForm] = useState<ProjectForm>(defaultForm);
+  const [form, setForm] = useState<ProjectForm>(defaultProjectForm);
   const [step, setStep] = useState<StepKey>("customer");
 
   const canSave = useMemo(() => form.name.trim().length > 0, [form.name]);
 
   const close = () => {
-    setForm(defaultForm);
+    setForm(defaultProjectForm);
     setStep("customer");
     onClose();
   };

@@ -2,21 +2,19 @@ import { TextField } from "@mui/material";
 import TableShell, { type Column } from "@/components/table/TableShell";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/api/http";
-
-type CalEvent = { id: string; title: string; startsAt?: string | null };
+import type { ApiEvent } from "../types";
 
 export default function EventsPage() {
-  const [rows, setRows] = useState<CalEvent[]>([]);
+  const [rows, setRows] = useState<ApiEvent[]>([]);
   const [q, setQ] = useState("");
 
   const load = async () => {
     const now = new Date();
     const y = now.getFullYear();
     const m = now.getMonth() + 1;
-    const items = await api<CalEvent[]>(
+    const items = await api<ApiEvent[]>(
       `/api/events/month?year=${y}&month=${m}`
     );
-    // מיון בצד הלקוח
     items.sort(
       (a, b) =>
         (a.startsAt ? Date.parse(a.startsAt) : 0) -
@@ -24,17 +22,21 @@ export default function EventsPage() {
     );
     setRows(items);
   };
+
   useEffect(() => {
     load();
   }, []);
 
   const filtered = useMemo(
-    () => rows.filter((r) => r.title.toLowerCase().includes(q.toLowerCase())),
+    () =>
+      rows.filter((r) =>
+        (r.title || "").toLowerCase().includes(q.toLowerCase())
+      ),
     [rows, q]
   );
 
-  const cols: Column<CalEvent>[] = [
-    { id: "title", header: "כותרת", render: (r) => r.title },
+  const cols: Column<ApiEvent>[] = [
+    { id: "title", header: "כותרת", render: (r) => r.title || "(ללא כותרת)" },
     {
       id: "when",
       header: "מתי",

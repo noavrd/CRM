@@ -13,19 +13,7 @@ import {
 import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import { useState } from "react";
-
-export type EventForm = {
-  title: string;
-  date: string; // "YYYY-MM-DD"
-  time?: string; // "HH:mm"
-  contact?: {
-    role?: "client" | "broker" | "lawyer" | "other";
-    name?: string;
-    phone?: string;
-  };
-  notes?: string;
-  projectId?: string;
-};
+import type { EventForm } from "../types";
 
 const ROLE_OPTIONS = [
   { value: "client", label: "לקוח" },
@@ -72,16 +60,14 @@ export default function CreateEventDialog({
     if (saving) return;
     setSaving(true);
     try {
-      await onSubmit(form); // חייב לזרוק שגיאה אם ה-API נכשל
-      // דוחה את הסגירה לטיקט הבא כדי להימנע מ-unmount בזמן רנדר
+      await onSubmit(form);
       setTimeout(() => {
         reset();
         onClose();
       }, 0);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Failed to create event:", err);
     } finally {
-      // אם ההורה החליט להשאיר פתוח (שגיאה) – נאפשר שמירה שוב
       setSaving(false);
     }
   };
@@ -153,7 +139,7 @@ export default function CreateEventDialog({
                 })
               }
             >
-              <MenuItem value="">{/* ריק */}</MenuItem>
+              <MenuItem value="" />
               {ROLE_OPTIONS.map((r) => (
                 <MenuItem key={r.value} value={r.value}>
                   {r.label}

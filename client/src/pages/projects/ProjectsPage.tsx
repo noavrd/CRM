@@ -3,13 +3,7 @@ import TableShell, { type Column } from "@/components/table/TableShell";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/api/http";
 import { PROJECT_STATUS_META, statusLabel } from "@/lib/projectStatus";
-
-type Project = {
-  id: string;
-  name: string;
-  pipelineStatus?: keyof typeof PROJECT_STATUS_META;
-  customer?: { name?: string };
-};
+import type { Project } from "../types";
 
 export default function ProjectsPage() {
   const [rows, setRows] = useState<Project[]>([]);
