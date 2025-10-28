@@ -1,8 +1,21 @@
 import { useMemo, useState } from "react";
 import {
-  Dialog, DialogTitle, DialogContent, DialogActions,
-  Button, Tabs, Tab, Box, TextField, InputAdornment,
-  IconButton, Typography, Checkbox, FormControlLabel, Divider, Grid
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Tabs,
+  Tab,
+  Box,
+  TextField,
+  InputAdornment,
+  IconButton,
+  Typography,
+  Checkbox,
+  FormControlLabel,
+  Divider,
+  Grid,
 } from "@mui/material";
 
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
@@ -45,7 +58,12 @@ const defaultForm: Lead = {
   notes: "",
 };
 
-export default function CreateLeadDialog({ open, onClose, onSubmit, loading }: Props) {
+export default function CreateLeadDialog({
+  open,
+  onClose,
+  onSubmit,
+  loading,
+}: Props) {
   const [tab, setTab] = useState(0);
   const [form, setForm] = useState<Lead>(defaultForm);
 
@@ -84,9 +102,15 @@ export default function CreateLeadDialog({ open, onClose, onSubmit, loading }: P
       return { ...f, payments };
     });
   const addPayment = () =>
-    setForm((f) => ({ ...f, payments: [...f.payments, { amount: 0, description: "", plusVAT: false }] }));
+    setForm((f) => ({
+      ...f,
+      payments: [...f.payments, { amount: 0, description: "", plusVAT: false }],
+    }));
   const removePayment = (idx: number) =>
-    setForm((f) => ({ ...f, payments: f.payments.filter((_, i) => i !== idx) }));
+    setForm((f) => ({
+      ...f,
+      payments: f.payments.filter((_, i) => i !== idx),
+    }));
 
   return (
     <Dialog open={open} onClose={handleClose} fullWidth maxWidth="lg">
@@ -110,7 +134,11 @@ export default function CreateLeadDialog({ open, onClose, onSubmit, loading }: P
                   required
                   value={form.customer.name}
                   onChange={(e) => setCustomer("name", e.target.value)}
-                  InputProps={{ startAdornment: <InputAdornment position="start">👤</InputAdornment> }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">👤</InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -119,7 +147,11 @@ export default function CreateLeadDialog({ open, onClose, onSubmit, loading }: P
                   fullWidth
                   value={form.customer.phone}
                   onChange={(e) => setCustomer("phone", e.target.value)}
-                  InputProps={{ startAdornment: <InputAdornment position="start">📞</InputAdornment> }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">📞</InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
 
@@ -129,7 +161,11 @@ export default function CreateLeadDialog({ open, onClose, onSubmit, loading }: P
                   fullWidth
                   value={form.customer.email}
                   onChange={(e) => setCustomer("email", e.target.value)}
-                  InputProps={{ startAdornment: <InputAdornment position="start">@</InputAdornment> }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">@</InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -138,7 +174,11 @@ export default function CreateLeadDialog({ open, onClose, onSubmit, loading }: P
                   fullWidth
                   value={form.customer.shippingEmail}
                   onChange={(e) => setCustomer("shippingEmail", e.target.value)}
-                  InputProps={{ startAdornment: <InputAdornment position="start">✉️</InputAdornment> }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">✉️</InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
 
@@ -156,7 +196,11 @@ export default function CreateLeadDialog({ open, onClose, onSubmit, loading }: P
                   fullWidth
                   value={form.customer.address}
                   onChange={(e) => setCustomer("address", e.target.value)}
-                  InputProps={{ startAdornment: <InputAdornment position="start">🏠</InputAdornment> }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">🏠</InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
 
@@ -166,7 +210,11 @@ export default function CreateLeadDialog({ open, onClose, onSubmit, loading }: P
                   fullWidth
                   value={form.customer.company}
                   onChange={(e) => setCustomer("company", e.target.value)}
-                  InputProps={{ startAdornment: <InputAdornment position="start">🏢</InputAdornment> }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">🏢</InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
 
@@ -189,46 +237,111 @@ export default function CreateLeadDialog({ open, onClose, onSubmit, loading }: P
           <Box dir="rtl">
             <Grid container spacing={2}>
               <Grid item xs={12} md={4}>
-                <TextField label="עיר" fullWidth value={form.property.city} onChange={(e) => setProperty("city", e.target.value)} />
+                <TextField
+                  label="עיר"
+                  fullWidth
+                  value={form.property.city}
+                  onChange={(e) => setProperty("city", e.target.value)}
+                />
               </Grid>
               <Grid item xs={12} md={4}>
-                <TextField label="רחוב" fullWidth value={form.property.street} onChange={(e) => setProperty("street", e.target.value)} />
+                <TextField
+                  label="רחוב"
+                  fullWidth
+                  value={form.property.street}
+                  onChange={(e) => setProperty("street", e.target.value)}
+                />
               </Grid>
               <Grid item xs={12} md={4}>
-                <TextField label="שכונה" fullWidth value={form.property.neighborhood} onChange={(e) => setProperty("neighborhood", e.target.value)} />
+                <TextField
+                  label="שכונה"
+                  fullWidth
+                  value={form.property.neighborhood}
+                  onChange={(e) => setProperty("neighborhood", e.target.value)}
+                />
               </Grid>
 
               <Grid item xs={12} md={3}>
-                <TextField label="מספר" fullWidth value={form.property.number} onChange={(e) => setProperty("number", e.target.value)} />
+                <TextField
+                  label="מספר"
+                  fullWidth
+                  value={form.property.number}
+                  onChange={(e) => setProperty("number", e.target.value)}
+                />
               </Grid>
               <Grid item xs={12} md={3}>
-                <TextField label="דירה" fullWidth value={form.property.apt} onChange={(e) => setProperty("apt", e.target.value)} />
+                <TextField
+                  label="דירה"
+                  fullWidth
+                  value={form.property.apt}
+                  onChange={(e) => setProperty("apt", e.target.value)}
+                />
               </Grid>
               <Grid item xs={12} md={3}>
-                <TextField label="חלקה" fullWidth value={form.property.parcel} onChange={(e) => setProperty("parcel", e.target.value)} />
+                <TextField
+                  label="חלקה"
+                  fullWidth
+                  value={form.property.parcel}
+                  onChange={(e) => setProperty("parcel", e.target.value)}
+                />
               </Grid>
               <Grid item xs={12} md={3}>
-                <TextField label="תת חלקה" fullWidth value={form.property.subParcel} onChange={(e) => setProperty("subParcel", e.target.value)} />
+                <TextField
+                  label="תת חלקה"
+                  fullWidth
+                  value={form.property.subParcel}
+                  onChange={(e) => setProperty("subParcel", e.target.value)}
+                />
               </Grid>
 
               <Grid item xs={12} md={3}>
-                <TextField label="גוש" fullWidth value={form.property.block} onChange={(e) => setProperty("block", e.target.value)} />
+                <TextField
+                  label="גוש"
+                  fullWidth
+                  value={form.property.block}
+                  onChange={(e) => setProperty("block", e.target.value)}
+                />
               </Grid>
               <Grid item xs={12} md={3}>
-                <TextField label="מגרש" fullWidth value={form.property.plot} onChange={(e) => setProperty("plot", e.target.value)} />
+                <TextField
+                  label="מגרש"
+                  fullWidth
+                  value={form.property.plot}
+                  onChange={(e) => setProperty("plot", e.target.value)}
+                />
               </Grid>
               <Grid item xs={12} md={3}>
-                <TextField label="סוג נכס" fullWidth value={form.property.propertyType} onChange={(e) => setProperty("propertyType", e.target.value)} />
+                <TextField
+                  label="סוג נכס"
+                  fullWidth
+                  value={form.property.propertyType}
+                  onChange={(e) => setProperty("propertyType", e.target.value)}
+                />
               </Grid>
               <Grid item xs={12} md={3}>
-                <TextField label="סוג שומה" fullWidth value={form.property.facadeType} onChange={(e) => setProperty("facadeType", e.target.value)} />
+                <TextField
+                  label="סוג שומה"
+                  fullWidth
+                  value={form.property.facadeType}
+                  onChange={(e) => setProperty("facadeType", e.target.value)}
+                />
               </Grid>
 
               <Grid item xs={12} md={3}>
-                <TextField label="גורם מפנה" fullWidth value={form.property.factor} onChange={(e) => setProperty("factor", e.target.value)} />
+                <TextField
+                  label="גורם מפנה"
+                  fullWidth
+                  value={form.property.factor}
+                  onChange={(e) => setProperty("factor", e.target.value)}
+                />
               </Grid>
               <Grid item xs={12} md={3}>
-                <TextField label="שמאי אחראי" fullWidth value={form.property.managerName} onChange={(e) => setProperty("managerName", e.target.value)} />
+                <TextField
+                  label="שמאי אחראי"
+                  fullWidth
+                  value={form.property.managerName}
+                  onChange={(e) => setProperty("managerName", e.target.value)}
+                />
               </Grid>
             </Grid>
           </Box>
@@ -247,8 +360,14 @@ export default function CreateLeadDialog({ open, onClose, onSubmit, loading }: P
                         type="number"
                         fullWidth
                         value={p.amount}
-                        onChange={(e) => setPayment(idx, { amount: Number(e.target.value) })}
-                        InputProps={{ startAdornment: <InputAdornment position="start">₪</InputAdornment> }}
+                        onChange={(e) =>
+                          setPayment(idx, { amount: Number(e.target.value) })
+                        }
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">₪</InputAdornment>
+                          ),
+                        }}
                       />
                     </Grid>
                     <Grid item xs={12} md={5}>
@@ -256,7 +375,9 @@ export default function CreateLeadDialog({ open, onClose, onSubmit, loading }: P
                         label="פירוט"
                         fullWidth
                         value={p.description || ""}
-                        onChange={(e) => setPayment(idx, { description: e.target.value })}
+                        onChange={(e) =>
+                          setPayment(idx, { description: e.target.value })
+                        }
                       />
                     </Grid>
                     <Grid item xs={12} md={3}>
@@ -264,7 +385,9 @@ export default function CreateLeadDialog({ open, onClose, onSubmit, loading }: P
                         control={
                           <Checkbox
                             checked={!!p.plusVAT}
-                            onChange={(e) => setPayment(idx, { plusVAT: e.target.checked })}
+                            onChange={(e) =>
+                              setPayment(idx, { plusVAT: e.target.checked })
+                            }
                           />
                         }
                         label="בתוספת מע״מ"
@@ -272,7 +395,11 @@ export default function CreateLeadDialog({ open, onClose, onSubmit, loading }: P
                     </Grid>
                     <Grid item xs={12} md={1} sx={{ textAlign: "left" }}>
                       {form.payments.length > 1 && (
-                        <IconButton color="error" onClick={() => removePayment(idx)} aria-label="מחק מרכיב">
+                        <IconButton
+                          color="error"
+                          onClick={() => removePayment(idx)}
+                          aria-label="מחק מרכיב"
+                        >
                           <DeleteOutlineIcon />
                         </IconButton>
                       )}
@@ -283,7 +410,9 @@ export default function CreateLeadDialog({ open, onClose, onSubmit, loading }: P
               ))}
 
               <Grid item xs={12}>
-                <Button variant="outlined" onClick={addPayment}>הוספת מרכיב נוסף</Button>
+                <Button variant="outlined" onClick={addPayment}>
+                  הוספת מרכיב נוסף
+                </Button>
               </Grid>
 
               <Grid item xs={12}>
@@ -297,7 +426,9 @@ export default function CreateLeadDialog({ open, onClose, onSubmit, loading }: P
                   multiline
                   minRows={4}
                   value={form.notes || ""}
-                  onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, notes: e.target.value }))
+                  }
                 />
               </Grid>
             </Grid>
@@ -309,11 +440,19 @@ export default function CreateLeadDialog({ open, onClose, onSubmit, loading }: P
         <Button onClick={handleClose}>ביטול</Button>
         {tab > 0 && <Button onClick={back}>חזרה אחורה</Button>}
         {tab < 2 ? (
-          <Button variant="contained" onClick={next} disabled={tab === 0 && !form.customer.name}>
+          <Button
+            variant="contained"
+            onClick={next}
+            disabled={tab === 0 && !form.customer.name}
+          >
             המשך
           </Button>
         ) : (
-          <Button variant="contained" onClick={save} disabled={loading || !form.customer.name}>
+          <Button
+            variant="contained"
+            onClick={save}
+            disabled={loading || !form.customer.name}
+          >
             שמירה
           </Button>
         )}

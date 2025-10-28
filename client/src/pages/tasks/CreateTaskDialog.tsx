@@ -1,7 +1,14 @@
 import { useMemo, useState } from "react";
 import {
-  Dialog, DialogTitle, DialogContent, DialogActions,
-  Box, TextField, Button, MenuItem, Typography
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Box,
+  TextField,
+  Button,
+  MenuItem,
+  Typography,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import { DateTime } from "luxon";
@@ -36,14 +43,18 @@ export default function CreateTaskDialog({
   projects = [],
   currentUserName,
 }: Props) {
-  const [form, setForm] = useState<Task>({ ...emptyForm, assignee: currentUserName ?? "" });
+  const [form, setForm] = useState<Task>({
+    ...emptyForm,
+    assignee: currentUserName ?? "",
+  });
 
   const canSave = useMemo(
     () => Boolean(form.projectId && form.description.trim().length > 0),
     [form.projectId, form.description]
   );
 
-  const reset = () => setForm({ ...emptyForm, assignee: currentUserName ?? "" });
+  const reset = () =>
+    setForm({ ...emptyForm, assignee: currentUserName ?? "" });
 
   const handleClose = () => {
     reset();
@@ -62,7 +73,9 @@ export default function CreateTaskDialog({
 
       <DialogContent dividers sx={{ pt: 2 }}>
         <Box dir="rtl">
-          <Typography variant="h6" sx={{ mb: 1 }}>בחירת משימה</Typography>
+          <Typography variant="h6" sx={{ mb: 1 }}>
+            בחירת משימה
+          </Typography>
 
           <Grid container spacing={2} sx={{ mb: 2 }}>
             <Grid item xs={12} md={8}>
@@ -71,7 +84,9 @@ export default function CreateTaskDialog({
                 fullWidth
                 label="כותרת"
                 value={form.projectId}
-                onChange={(e) => setForm((f) => ({ ...f, projectId: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, projectId: e.target.value }))
+                }
               >
                 {/* add to choose project
                 {projects.map((p) => (
@@ -90,7 +105,10 @@ export default function CreateTaskDialog({
                 onChange={(e) => {
                   const iso = e.target.value;
                   const dt = DateTime.fromISO(iso);
-                  setForm((f) => ({ ...f, dueDate: dt.isValid ? dt : f.dueDate }));
+                  setForm((f) => ({
+                    ...f,
+                    dueDate: dt.isValid ? dt : f.dueDate,
+                  }));
                 }}
               />
             </Grid>
@@ -100,7 +118,9 @@ export default function CreateTaskDialog({
                 fullWidth
                 label="משויך לשמאי"
                 value={form.assignee ?? ""}
-                onChange={(e) => setForm((f) => ({ ...f, assignee: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, assignee: e.target.value }))
+                }
               />
             </Grid>
 
@@ -111,12 +131,19 @@ export default function CreateTaskDialog({
                 label="סטטוס"
                 value={form.status}
                 onChange={(e) =>
-                  setForm((f) => ({ ...f, status: e.target.value as Task["status"] }))
+                  setForm((f) => ({
+                    ...f,
+                    status: e.target.value as Task["status"],
+                  }))
                 }
               >
                 {STATUS_OPTIONS.map((s) => (
                   <MenuItem key={s} value={s}>
-                    {s === "todo" ? "פתוחה" : s === "in-progress" ? "בתהליך" : "בוצעה"}
+                    {s === "todo"
+                      ? "פתוחה"
+                      : s === "in-progress"
+                      ? "בתהליך"
+                      : "בוצעה"}
                   </MenuItem>
                 ))}
               </TextField>
@@ -131,7 +158,9 @@ export default function CreateTaskDialog({
                 minRows={6}
                 label="כתבו משימה חדשה…"
                 value={form.description}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, description: e.target.value }))
+                }
               />
             </Grid>
           </Grid>

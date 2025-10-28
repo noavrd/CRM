@@ -8,10 +8,17 @@ const router = Router();
 router.get("/stats", async (req, res) => {
   try {
     const userId = (req as any).userId as string;
-    const snap = await adminDb.collection("leads").where("userId", "==", userId).get();
+    const snap = await adminDb
+      .collection("leads")
+      .where("userId", "==", userId)
+      .get();
     const total = snap.size;
-    const convertedCount = snap.docs.filter((d) => d.get("status") === "project").length;
-    const conversionRate = total ? Math.round((convertedCount / total) * 100) : 0;
+    const convertedCount = snap.docs.filter(
+      (d) => d.get("status") === "project"
+    ).length;
+    const conversionRate = total
+      ? Math.round((convertedCount / total) * 100)
+      : 0;
     res.json({ total, convertedCount, conversionRate });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -42,7 +49,11 @@ router.post("/", async (req, res) => {
     const userId = (req as any).userId as string;
     const { customer, property, payments, notes } = req.body || {};
 
-    if (!customer?.name || typeof customer.name !== "string" || !customer.name.trim()) {
+    if (
+      !customer?.name ||
+      typeof customer.name !== "string" ||
+      !customer.name.trim()
+    ) {
       return res.status(400).json({ error: "customer.name is required" });
     }
 
@@ -100,7 +111,8 @@ router.put("/:id", async (req, res) => {
     const userId = (req as any).userId as string;
     const ref = adminDb.collection("leads").doc(req.params.id);
     const doc = await ref.get();
-    if (!doc.exists || doc.get("userId") !== userId) return res.status(404).json({ error: "not found" });
+    if (!doc.exists || doc.get("userId") !== userId)
+      return res.status(404).json({ error: "not found" });
 
     const { customer, property, payments, notes, status } = req.body || {};
     const patch: any = {};
@@ -132,7 +144,8 @@ router.put("/:id/convert", async (req, res) => {
     const userId = (req as any).userId as string;
     const ref = adminDb.collection("leads").doc(req.params.id);
     const doc = await ref.get();
-    if (!doc.exists || doc.get("userId") !== userId) return res.status(404).json({ error: "not found" });
+    if (!doc.exists || doc.get("userId") !== userId)
+      return res.status(404).json({ error: "not found" });
     await ref.update({ status: "project", convertedAt: Timestamp.now() });
     res.json({ ok: true });
   } catch (e: any) {

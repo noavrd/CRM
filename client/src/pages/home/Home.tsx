@@ -1,9 +1,9 @@
 import { Box, Grid } from "@mui/material";
-import LeadsCard from "./leads/LeadsCard";
-import ProjectsDonutCard from "./projects/ProjectsDonutCard";
-import TasksListCard from "./tasks/TasksListCard";
-import CalendarCard from "./events/CalendarCard";
-import NextVisits from "./NextVisits/NextVisitsCard";
+import LeadsCard from "../leads/LeadsCard";
+import ProjectsDonutCard from "../projects/ProjectsDonutCard";
+import TasksListCard from "../tasks/TasksListCard";
+import CalendarCard from "../events/CalendarCard";
+import NextVisits from "../visits/NextVisitsCard";
 
 // גבהים נמוכים יותר — כדי שיראה לרוחב
 const H_FIRST = { xs: 220, sm: 240, md: 240, lg: 260 };
