@@ -11,7 +11,7 @@ export default function ThemeToggle({ onToggle }: Props) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
 
-  const title = isDark ? "Switch to light mode" : "Switch to dark mode";
+  const title = isDark ? "Light mode" : "Dark mode";
 
   return (
     <Tooltip title={title}>
