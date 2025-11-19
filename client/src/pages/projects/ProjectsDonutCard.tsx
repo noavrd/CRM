@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Box, Stack, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { PieChart } from "@mui/x-charts/PieChart";
 import { api } from "@/api/http";
 import CreateProjectDialog from "./CreateProjectDialog";
@@ -81,25 +81,30 @@ export default function ProjectsDonutCard() {
         onShowAll={() => navigate("/projects")}
         showAllLabel="הצג הכל"
         minHeight={380}
-        contentSx={{
-          alignItems: "stretch",
-          justifyContent: "flex-start",
-          py: 0,
-        }}
       >
-        <Box sx={{ mt: 1, display: "flex", justifyContent: "center" }}>
+        <Box
+          sx={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            mb: 10,
+            mt: -6,
+          }}
+        >
           <Box
             dir="ltr"
             sx={{
               position: "relative",
               width: chartSize,
               height: chartSize,
-              mx: "auto",
             }}
           >
             <PieChart
               width={chartSize}
               height={chartSize}
+              margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
+              hideLegend={true}
               series={[
                 {
                   data: (dataNonZero.length
@@ -110,9 +115,23 @@ export default function ProjectsDonutCard() {
                   paddingAngle: 2,
                   cornerRadius: 2,
                   valueFormatter: (it) => `${it.value}`,
+                  arcLabel: () => "",
+                  highlightScope: { fade: "none", highlight: "none" },
+                  // מרכזת את העוגה בתוך ה־SVG
+                  cx: "50%",
+                  cy: "50%",
                 },
               ]}
+              // slotProps={{
+              //   legend: {
+              //     hidden: true,
+              //     // direction: "column",
+              //     // position: { vertical: "middle", horizontal: "right" },
+              //   } as any,
+              // }}
             />
+
+            {/* טקסט באמצע הדונאט */}
             <Box
               sx={{
                 position: "absolute",

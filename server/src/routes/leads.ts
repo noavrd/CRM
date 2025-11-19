@@ -32,13 +32,14 @@ router.get("/", async (req, res) => {
     const snap = await adminDb
       .collection("leads")
       .where("userId", "==", userId)
-      .orderBy("createdAt", "desc")
+      // בלי orderBy – כדי לא לדרוש אינדקס מורכב
       .limit(50)
       .get();
 
     const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     res.json(items);
   } catch (e: any) {
+    console.error("GET /leads error:", e);
     res.status(500).json({ error: e.message });
   }
 });
