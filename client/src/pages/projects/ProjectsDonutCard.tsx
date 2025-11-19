@@ -8,6 +8,9 @@ import DashboardCard from "@/components/dashboard/DashboardCard";
 import { useNavigate } from "react-router-dom";
 import { PROJECT_STATUS_ORDER, PROJECT_STATUS_META } from "@/lib/projectStatus";
 import type { ProjectForm, ProjectStats } from "../types";
+import ProjectStatusDialog, {
+  type ProjectStatusKey,
+} from "./ProjectsStatusDialog";
 
 export default function ProjectsDonutCard() {
   const [stats, setStats] = useState<ProjectStats>({
@@ -20,6 +23,12 @@ export default function ProjectsDonutCard() {
     done: 0,
   });
   const [open, setOpen] = useState(false);
+
+  // סטטוס שנבחר בדונאט לדיאלוג
+  const [dialogStatus, setDialogStatus] = useState<ProjectStatusKey | null>(
+    null
+  );
+
   const { success, error } = useSnackbar();
   const navigate = useNavigate();
 
@@ -68,9 +77,20 @@ export default function ProjectsDonutCard() {
       })),
     [stats]
   );
-  const dataNonZero = seriesData.filter((d) => d.value > 0);
 
+  const dataNonZero = seriesData.filter((d) => d.value > 0);
   const chartSize = 260;
+
+  // קליק על פרוסה – בוחרת סטטוס ופותחת דיאלוג
+  const handleSliceClick = (_event: any, params: any) => {
+    const index = params?.dataIndex as number | undefined;
+    if (index == null) return;
+
+    const slice = (dataNonZero.length ? dataNonZero : seriesData)[index];
+    if (!slice || slice.value === 0) return;
+
+    setDialogStatus(slice.key as ProjectStatusKey);
+  };
 
   return (
     <>
@@ -81,7 +101,9 @@ export default function ProjectsDonutCard() {
         onShowAll={() => navigate("/projects")}
         showAllLabel="הצג הכל"
         minHeight={380}
+        contentSx={{}}
       >
+        {/* הקונטיינר הזה ממורכז גם אנכית וגם אופקית בתוך ה-CardContent */}
         <Box
           sx={{
             flex: 1,
@@ -117,18 +139,11 @@ export default function ProjectsDonutCard() {
                   valueFormatter: (it) => `${it.value}`,
                   arcLabel: () => "",
                   highlightScope: { fade: "none", highlight: "none" },
-                  // מרכזת את העוגה בתוך ה־SVG
                   cx: "50%",
                   cy: "50%",
                 },
               ]}
-              // slotProps={{
-              //   legend: {
-              //     hidden: true,
-              //     // direction: "column",
-              //     // position: { vertical: "middle", horizontal: "right" },
-              //   } as any,
-              // }}
+              onItemClick={handleSliceClick}
             />
 
             {/* טקסט באמצע הדונאט */}
@@ -157,6 +172,13 @@ export default function ProjectsDonutCard() {
           </Box>
         </Box>
       </DashboardCard>
+
+      {/* דיאלוג פרויקטים לפי סטטוס */}
+      <ProjectStatusDialog
+        open={Boolean(dialogStatus)}
+        status={dialogStatus}
+        onClose={() => setDialogStatus(null)}
+      />
 
       <CreateProjectDialog
         open={open}

@@ -18,7 +18,11 @@ export const PROJECT_STATUS_ORDER: ProjectStatus[] = [
 // תצוגה: תווית + צבע (לגרפים/תגיות)
 export const PROJECT_STATUS_META: Record<
   ProjectStatus,
-  { label: string; color: string; short?: string }
+  {
+    label: string;
+    color: string;
+    short?: string;
+  }
 > = {
   quote: { label: "הצעת מחיר", color: "#7E9AE8", short: "הצעה" },
   pre_visit: { label: "טרום ביקור", color: "#F5A623", short: "טרום" },

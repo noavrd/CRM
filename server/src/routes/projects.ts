@@ -76,21 +76,56 @@ router.get("/stats", async (req, res) => {
   }
 });
 
-/* ---------- GET /api/projects (רשימת פרויקטים) ---------- */
+// GET /api/projects?status=pre_visit
 router.get("/", async (req, res) => {
   try {
     const userId = (req as any).userId as string;
+    const status = req.query.status as string | undefined;
 
-    const snap = await adminDb
-      .collection("projects")
-      .where("userId", "==", userId)
-      .orderBy("createdAt", "desc")
-      .limit(50)
-      .get();
+    // בסיס לשאילתות
+    const base = adminDb.collection("projects").where("userId", "==", userId);
 
-    const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    // אם לא עבר status – מחזירים את הכל כרגיל
+    if (!status || !isValidStatus(status)) {
+      const snap = await base.orderBy("createdAt", "desc").limit(50).get();
+      const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      return res.json(items);
+    }
+
+    // יש status תקין – מביאים גם מהשדה החדש וגם משדה stage הישן
+    const snaps: FirebaseFirestore.QuerySnapshot[] = [];
+
+    // 1. שדה status החדש
+    snaps.push(await base.where("status", "==", status).get());
+
+    // 2. תאימות לאחור: לפרה/פוסט ביקור – גם לפי stage
+    if (status === "pre_visit" || status === "post_visit") {
+      snaps.push(await base.where("stage", "==", status).get());
+    }
+
+    // מאחדים תוצאות בלי כפילויות
+    const seen = new Set<string>();
+    const items = snaps.flatMap(
+      (snap) =>
+        snap.docs
+          .map((d) => {
+            if (seen.has(d.id)) return null;
+            seen.add(d.id);
+            return { id: d.id, ...d.data() };
+          })
+          .filter(Boolean) as any[]
+    );
+
+    // אפשר למיין בצד השרת לפי createdAt אם קיים
+    items.sort((a, b) => {
+      const ta = (a.createdAt as any)?.seconds ?? 0;
+      const tb = (b.createdAt as any)?.seconds ?? 0;
+      return tb - ta;
+    });
+
     res.json(items);
   } catch (e: any) {
+    console.error("GET /api/projects error:", e);
     res.status(500).json({ error: e.message });
   }
 });
@@ -220,11 +255,9 @@ router.put("/:id", async (req, res) => {
     if (name !== undefined) patch.name = String(name);
     if (status !== undefined) {
       if (!isValidStatus(status)) {
-        return res
-          .status(400)
-          .json({
-            error: `invalid status. allowed: ${STATUS_VALUES.join(", ")}`,
-          });
+        return res.status(400).json({
+          error: `invalid status. allowed: ${STATUS_VALUES.join(", ")}`,
+        });
       }
       patch.status = status;
     }
