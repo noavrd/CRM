@@ -5,9 +5,8 @@ import TasksListCard from "../tasks/TasksListCard";
 import CalendarCard from "../events/CalendarCard";
 import NextVisits from "../visits/NextVisitsCard";
 
-// גבהים אחידים לכל שורה
-const H_FIRST = { xs: 230, sm: 260, md: 260, lg: 280 };
-const H_SECOND = { xs: 260, sm: 290, md: 320, lg: 340 };
+const H_FIRST = { xs: 350, sm: 260, md: 260, lg: 280 };
+const H_SECOND = { xs: 350, sm: 290, md: 320, lg: 340 };
 
 export default function Home() {
   const cellSx = { display: "flex" as const };

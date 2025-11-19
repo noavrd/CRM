@@ -82,30 +82,43 @@ router.get("/", async (req, res) => {
     const userId = (req as any).userId as string;
     const status = req.query.status as string | undefined;
 
-    // בסיס לשאילתות
     const base = adminDb.collection("projects").where("userId", "==", userId);
 
-    // אם לא עבר status – מחזירים את הכל כרגיל
+    // 1. אין status → מחזירים את כל הפרויקטים של המשתמש, ממוינים בקוד
     if (!status || !isValidStatus(status)) {
-      const snap = await base.orderBy("createdAt", "desc").limit(50).get();
-      const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const snap = await base.get(); // ← בלי orderBy / limit
+
+      let items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+      // מיון בצד השרת לפי createdAt (Firestore Timestamp)
+      items = items.sort((a: any, b: any) => {
+        const aTs = a.createdAt;
+        const bTs = b.createdAt;
+
+        const aMs =
+          aTs && typeof aTs.toMillis === "function" ? aTs.toMillis() : 0;
+        const bMs =
+          bTs && typeof bTs.toMillis === "function" ? bTs.toMillis() : 0;
+
+        return bMs - aMs; // חדש קודם
+      });
+
       return res.json(items);
     }
 
-    // יש status תקין – מביאים גם מהשדה החדש וגם משדה stage הישן
+    // 2. יש status תקין → מביאות לפי status ו-stage (לתאימות לאחור)
     const snaps: FirebaseFirestore.QuerySnapshot[] = [];
 
-    // 1. שדה status החדש
+    // שדה status החדש
     snaps.push(await base.where("status", "==", status).get());
 
-    // 2. תאימות לאחור: לפרה/פוסט ביקור – גם לפי stage
+    // תאימות לאחור ל-pre_visit / post_visit לפי stage
     if (status === "pre_visit" || status === "post_visit") {
       snaps.push(await base.where("stage", "==", status).get());
     }
 
-    // מאחדים תוצאות בלי כפילויות
     const seen = new Set<string>();
-    const items = snaps.flatMap(
+    let items = snaps.flatMap(
       (snap) =>
         snap.docs
           .map((d) => {
@@ -116,11 +129,17 @@ router.get("/", async (req, res) => {
           .filter(Boolean) as any[]
     );
 
-    // אפשר למיין בצד השרת לפי createdAt אם קיים
-    items.sort((a, b) => {
-      const ta = (a.createdAt as any)?.seconds ?? 0;
-      const tb = (b.createdAt as any)?.seconds ?? 0;
-      return tb - ta;
+    // גם כאן מיון לפי createdAt אם קיים
+    items = items.sort((a: any, b: any) => {
+      const aTs = a.createdAt;
+      const bTs = b.createdAt;
+
+      const aMs =
+        aTs && typeof aTs.toMillis === "function" ? aTs.toMillis() : 0;
+      const bMs =
+        bTs && typeof bTs.toMillis === "function" ? bTs.toMillis() : 0;
+
+      return bMs - aMs;
     });
 
     res.json(items);

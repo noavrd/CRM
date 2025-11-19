@@ -6,11 +6,13 @@ import CreateProjectDialog from "./CreateProjectDialog";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import DashboardCard from "@/components/dashboard/DashboardCard";
 import { useNavigate } from "react-router-dom";
-import { PROJECT_STATUS_ORDER, PROJECT_STATUS_META } from "@/lib/projectStatus";
+import {
+  PROJECT_STATUS_ORDER,
+  PROJECT_STATUS_META,
+  type ProjectStatus,
+} from "@/lib/projectStatus";
 import type { ProjectForm, ProjectStats } from "../types";
-import ProjectStatusDialog, {
-  type ProjectStatusKey,
-} from "./ProjectsStatusDialog";
+import ProjectStatusDialog from "./ProjectsStatusDialog";
 
 export default function ProjectsDonutCard() {
   const [stats, setStats] = useState<ProjectStats>({
@@ -25,9 +27,7 @@ export default function ProjectsDonutCard() {
   const [open, setOpen] = useState(false);
 
   // סטטוס שנבחר בדונאט לדיאלוג
-  const [dialogStatus, setDialogStatus] = useState<ProjectStatusKey | null>(
-    null
-  );
+  const [dialogStatus, setDialogStatus] = useState<ProjectStatus | null>(null);
 
   const { success, error } = useSnackbar();
   const navigate = useNavigate();
@@ -48,6 +48,7 @@ export default function ProjectsDonutCard() {
       error("שגיאה בטעינת סטטיסטיקות פרויקטים");
     }
   };
+
   useEffect(() => {
     load();
   }, []);
@@ -73,7 +74,7 @@ export default function ProjectsDonutCard() {
         value: Number((stats as any)[key] ?? 0),
         label: PROJECT_STATUS_META[key].label,
         color: PROJECT_STATUS_META[key].color,
-        key,
+        key, // <- ProjectStatus
       })),
     [stats]
   );
@@ -86,10 +87,11 @@ export default function ProjectsDonutCard() {
     const index = params?.dataIndex as number | undefined;
     if (index == null) return;
 
-    const slice = (dataNonZero.length ? dataNonZero : seriesData)[index];
+    const dataSource = dataNonZero.length ? dataNonZero : seriesData;
+    const slice = dataSource[index];
     if (!slice || slice.value === 0) return;
 
-    setDialogStatus(slice.key as ProjectStatusKey);
+    setDialogStatus(slice.key as ProjectStatus);
   };
 
   return (
