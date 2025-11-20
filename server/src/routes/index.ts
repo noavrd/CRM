@@ -7,6 +7,7 @@ import projectsRouter from "./projects";
 import visitsRouter from "./visits";
 import tasksRouter from "./tasks";
 import eventsRouter from "./events";
+import placesRouter from "./places";
 
 export function registerRoutes(app: Express) {
   app.get("/health", (_req, res) => res.json({ ok: true }));
@@ -17,4 +18,5 @@ export function registerRoutes(app: Express) {
   app.use("/api/visits", visitsRouter);
   app.use("/api/tasks", tasksRouter);
   app.use("/api/events", eventsRouter);
+  app.use("/api/places", placesRouter);
 }

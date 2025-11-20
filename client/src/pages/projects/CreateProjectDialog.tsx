@@ -27,6 +27,7 @@ import {
 import { useMemo, useState } from "react";
 import { defaultProjectForm } from "../defaultValues";
 import { type ProjectForm } from "../types";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 
 const steps = [
   {
@@ -252,125 +253,122 @@ export default function CreateProjectDialog({
         )}
 
         {step === "address" && (
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={4}>
-              <TextField
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <Box sx={{ width: "76%" }}>
+              <AddressAutocomplete
+                label="חיפוש כתובת"
                 fullWidth
-                label="עיר"
-                value={form.address.city}
-                onChange={(e) =>
+                value={[
+                  form.address.street,
+                  form.address.number,
+                  form.address.city,
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                onSelectAddress={(addr) =>
                   setForm({
                     ...form,
-                    address: { ...form.address, city: e.target.value },
+                    address: {
+                      ...form.address,
+                      city: addr.city || "",
+                      street: addr.street || "",
+                      number: addr.houseNumber || "",
+                    },
                   })
                 }
               />
+            </Box>
+
+            {/* שאר שדות הכתובת (בלי עיר/רחוב/מספר) */}
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  label="דירה"
+                  value={form.address.apt}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      address: { ...form.address, apt: e.target.value },
+                    })
+                  }
+                />
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  label="שכונה"
+                  value={form.address.neighborhood}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      address: {
+                        ...form.address,
+                        neighborhood: e.target.value,
+                      },
+                    })
+                  }
+                />
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  label="גוש"
+                  value={form.address.block}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      address: { ...form.address, block: e.target.value },
+                    })
+                  }
+                />
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  label="חלקה"
+                  value={form.address.parcel}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      address: { ...form.address, parcel: e.target.value },
+                    })
+                  }
+                />
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  label="תת חלקה"
+                  value={form.address.subParcel}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      address: { ...form.address, subParcel: e.target.value },
+                    })
+                  }
+                />
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  label="מגרש"
+                  value={form.address.plot}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      address: { ...form.address, plot: e.target.value },
+                    })
+                  }
+                />
+              </Grid>
             </Grid>
-            <Grid item xs={12} md={4}>
-              <TextField
-                fullWidth
-                label="רחוב"
-                value={form.address.street}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    address: { ...form.address, street: e.target.value },
-                  })
-                }
-              />
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <TextField
-                fullWidth
-                label="מספר"
-                value={form.address.number}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    address: { ...form.address, number: e.target.value },
-                  })
-                }
-              />
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <TextField
-                fullWidth
-                label="דירה"
-                value={form.address.apt}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    address: { ...form.address, apt: e.target.value },
-                  })
-                }
-              />
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <TextField
-                fullWidth
-                label="שכונה"
-                value={form.address.neighborhood}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    address: { ...form.address, neighborhood: e.target.value },
-                  })
-                }
-              />
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <TextField
-                fullWidth
-                label="גוש"
-                value={form.address.block}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    address: { ...form.address, block: e.target.value },
-                  })
-                }
-              />
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <TextField
-                fullWidth
-                label="חלקה"
-                value={form.address.parcel}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    address: { ...form.address, parcel: e.target.value },
-                  })
-                }
-              />
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <TextField
-                fullWidth
-                label="תת חלקה"
-                value={form.address.subParcel}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    address: { ...form.address, subParcel: e.target.value },
-                  })
-                }
-              />
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <TextField
-                fullWidth
-                label="מגרש"
-                value={form.address.plot}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    address: { ...form.address, plot: e.target.value },
-                  })
-                }
-              />
-            </Grid>
-          </Grid>
+          </Box>
         )}
 
         {step === "asset" && (

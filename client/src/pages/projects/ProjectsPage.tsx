@@ -1,38 +1,35 @@
-import { useEffect, useMemo, useState } from "react";
-import { TextField, MenuItem, Stack } from "@mui/material";
+// src/pages/projects/ProjectsPage.tsx
+
+import {
+  Box,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+} from "@mui/material";
 import TableShell, { type Column } from "@/components/table/TableShell";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "@/api/http";
 import {
   PROJECT_STATUS_ORDER,
-  PROJECT_STATUS_META,
   statusLabel,
   type ProjectStatus,
 } from "@/lib/projectStatus";
-import type { Project } from "../types";
 import ProjectStatusChip from "./ProjectStatusChip";
-
-type StatusFilter = ProjectStatus | "all";
+import type { Project } from "../types";
 
 export default function ProjectsPage() {
   const [rows, setRows] = useState<Project[]>([]);
   const [q, setQ] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<ProjectStatus | "all">(
+    "all"
+  );
 
   const load = async () => {
-    try {
-      const res = await api<Project[] | { items: Project[] }>("/api/projects");
-
-      const arr = Array.isArray(res)
-        ? res
-        : Array.isArray((res as any)?.items)
-        ? (res as any).items
-        : [];
-
-      setRows(arr);
-    } catch (err) {
-      console.error("Failed to load projects:", err);
-      setRows([]);
-    }
+    const res = await api<Project[]>("/api/projects");
+    const arr = Array.isArray(res) ? res : [];
+    setRows(arr);
   };
 
   useEffect(() => {
@@ -43,42 +40,46 @@ export default function ProjectsPage() {
     const needle = q.trim().toLowerCase();
 
     return rows.filter((r) => {
-      const projectStatus = (r.status ?? "quote") as ProjectStatus;
+      // סטטוס אפקטיבי – קודם החדש, אם לא קיים אז pipelineStatus
+      const effectiveStatus: ProjectStatus | undefined =
+        (r.status as ProjectStatus | undefined) ??
+        (r.pipelineStatus as ProjectStatus | undefined);
 
       // סינון לפי סטטוס
-      if (statusFilter !== "all" && projectStatus !== statusFilter) {
+      if (statusFilter !== "all" && effectiveStatus !== statusFilter) {
         return false;
       }
 
-      // סינון טקסט חופשי
-      if (!needle) return true;
+      const statusText = effectiveStatus ? statusLabel(effectiveStatus) : "";
 
-      const haystack = [r.name, r.customer?.name, statusLabel(projectStatus)]
+      const hay = [r.name, r.customer?.name, statusText]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
 
-      return haystack.includes(needle);
+      if (!needle) return true;
+      return hay.includes(needle);
     });
   }, [rows, q, statusFilter]);
 
   const cols: Column<Project>[] = [
+    { id: "name", header: "שם פרויקט", render: (r) => r.name || "-" },
+    { id: "cust", header: "לקוח/ה", render: (r) => r.customer?.name || "-" },
     {
-      id: "name",
-      header: "שם פרויקט",
-      render: (r) => r.name || "-",
-    },
-    {
-      id: "cust",
-      header: "לקוח",
-      render: (r) => r.customer?.name || "-",
+      id: "city",
+      header: "עיר",
+      render: (r) => r.address?.city || "-",
     },
     {
       id: "status",
       header: "סטטוס",
-      render: (r) => (
-        <ProjectStatusChip status={(r.status ?? "quote") as ProjectStatus} />
-      ),
+      render: (r) => {
+        const effectiveStatus: ProjectStatus | undefined =
+          (r.status as ProjectStatus | undefined) ??
+          (r.pipelineStatus as ProjectStatus | undefined);
+
+        return <ProjectStatusChip status={effectiveStatus ?? null} />;
+      },
     },
   ];
 
@@ -86,13 +87,11 @@ export default function ProjectsPage() {
     <TableShell
       title="פרויקטים"
       filters={
-        <Stack
-          direction="row"
-          spacing={1}
+        <Box
           sx={{
-            width: "100%",
-            justifyContent: "flex-start", // בצד שמאל ויזואלית
+            display: "flex",
             flexWrap: "wrap",
+            justifyContent: "flex-end", // ב-RTL זה "צד שמאל" פיזי
             gap: 1,
           }}
         >
@@ -102,26 +101,29 @@ export default function ProjectsPage() {
             placeholder="חיפוש..."
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            sx={{ minWidth: 200 }}
+            sx={{ minWidth: 220 }}
           />
 
-          {/* ואז סטטוס */}
-          <TextField
-            size="small"
-            select
-            label="סטטוס"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-            sx={{ minWidth: 140 }}
-          >
-            <MenuItem value="all">הכל</MenuItem>
-            {PROJECT_STATUS_ORDER.map((s) => (
-              <MenuItem key={s} value={s}>
-                {PROJECT_STATUS_META[s].label}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Stack>
+          {/* ואז סינון סטטוס */}
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel id="status-filter-label">סטטוס</InputLabel>
+            <Select
+              labelId="status-filter-label"
+              label="סטטוס"
+              value={statusFilter}
+              onChange={(e) =>
+                setStatusFilter(e.target.value as ProjectStatus | "all")
+              }
+            >
+              <MenuItem value="all">הכל</MenuItem>
+              {PROJECT_STATUS_ORDER.map((s) => (
+                <MenuItem key={s} value={s}>
+                  {statusLabel(s)}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
       }
       columns={cols}
       rows={filtered}
