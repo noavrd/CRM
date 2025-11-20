@@ -1,5 +1,3 @@
-// src/features/projects/ProjectsMapCard.tsx
-
 import { useEffect, useState, useMemo } from "react";
 import {
   Card,
@@ -10,11 +8,18 @@ import {
   Typography,
 } from "@mui/material";
 import { api } from "@/api/http";
-import { GoogleMap, MarkerF, useJsApiLoader } from "@react-google-maps/api";
+import {
+  GoogleMap,
+  MarkerF,
+  InfoWindowF,
+  useJsApiLoader,
+} from "@react-google-maps/api";
+import { statusLabel } from "@/lib/projectStatus";
 
 type ProjectMapItem = {
   id: string;
   name: string;
+  status?: string; // נשתמש ב־statusLabel בצד הקליינט
   address?: {
     lat?: number;
     lng?: number;
@@ -35,9 +40,11 @@ const DEFAULT_CENTER = { lat: 31.771959, lng: 35.217018 };
 export default function ProjectsMapCard() {
   const [items, setItems] = useState<ProjectMapItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hoverId, setHoverId] = useState<string | null>(null);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
   const hasKey = Boolean(apiKey);
+
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: apiKey || "",
   });
@@ -45,20 +52,27 @@ export default function ProjectsMapCard() {
   useEffect(() => {
     (async () => {
       try {
-        const data = await api<ProjectMapItem[]>("/api/projects");
+        const data = await api<any[]>("/api/projects");
         const arr = Array.isArray(data) ? data : [];
 
-        // רק כאלה שיש להם קואורדינטות תקינות
-        const withCoords = arr.filter((p) => {
-          const lat = p.address?.lat;
-          const lng = p.address?.lng;
-          return (
-            lat != null &&
-            lng != null &&
-            !Number.isNaN(Number(lat)) &&
-            !Number.isNaN(Number(lng))
-          );
-        });
+        // מסננים רק כאלה עם קואורדינטות, וממפים לסוג המצומצם שלנו
+        const withCoords: ProjectMapItem[] = arr
+          .filter((p) => {
+            const lat = p.address?.lat;
+            const lng = p.address?.lng;
+            return (
+              lat != null &&
+              lng != null &&
+              !Number.isNaN(Number(lat)) &&
+              !Number.isNaN(Number(lng))
+            );
+          })
+          .map((p) => ({
+            id: p.id,
+            name: p.name,
+            status: p.status ?? p.pipelineStatus,
+            address: p.address,
+          }));
 
         setItems(withCoords);
       } catch (e) {
@@ -69,7 +83,7 @@ export default function ProjectsMapCard() {
     })();
   }, []);
 
-  // חישוב מרכז מפה – ממוצע של כל ה־lat/lng או ברירת מחדל
+  // חישוב מרכז מפה – ממוצע של ה־lat/lng או ברירת מחדל
   const center = useMemo(() => {
     if (!items.length) return DEFAULT_CENTER;
 
@@ -142,7 +156,7 @@ export default function ProjectsMapCard() {
           </Box>
         )}
 
-        {/* מפה דינמית – תמיד, גם אם אין פרויקטים */}
+        {/* מפה דינמית – גם אם אין פרויקטים */}
         {hasKey && isLoaded && !loadError && !loading && (
           <Box sx={{ width: "100%", height: "100%" }}>
             <GoogleMap
@@ -164,7 +178,32 @@ export default function ProjectsMapCard() {
                       lng: Number(p.address.lng),
                     }}
                     title={p.name}
+                    onMouseOver={() => setHoverId(p.id)}
+                    onMouseOut={() =>
+                      setHoverId((cur) => (cur === p.id ? null : cur))
+                    }
                   />
+                ) : null
+              )}
+
+              {/* בועת מידע על ה־hover */}
+              {items.map((p) =>
+                hoverId === p.id && p.address?.lat && p.address.lng ? (
+                  <InfoWindowF
+                    key={`info-${p.id}`}
+                    position={{
+                      lat: Number(p.address.lat),
+                      lng: Number(p.address.lng),
+                    }}
+                    onCloseClick={() => setHoverId(null)}
+                  >
+                    <div style={{ direction: "rtl" }}>
+                      <strong>{p.name}</strong>
+                      {p.status && (
+                        <div>סטטוס: {statusLabel(p.status as any)}</div>
+                      )}
+                    </div>
+                  </InfoWindowF>
                 ) : null
               )}
             </GoogleMap>
