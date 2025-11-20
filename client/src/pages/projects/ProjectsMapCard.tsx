@@ -1,3 +1,5 @@
+// src/features/projects/ProjectsMapCard.tsx
+
 import { useEffect, useState, useMemo } from "react";
 import {
   Card,
@@ -6,41 +8,66 @@ import {
   CircularProgress,
   Box,
   Typography,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Grid,
 } from "@mui/material";
-import { api } from "@/api/http";
 import {
   GoogleMap,
   MarkerF,
   InfoWindowF,
   useJsApiLoader,
 } from "@react-google-maps/api";
-import { statusLabel } from "@/lib/projectStatus";
+import { api } from "@/api/http";
+import {
+  PROJECT_STATUS_META,
+  type ProjectStatus,
+  statusLabel,
+} from "@/lib/projectStatus";
+
+// ---------- סוגים ----------
 
 type ProjectMapItem = {
   id: string;
   name: string;
-  status?: string; // נשתמש ב־statusLabel בצד הקליינט
-  address?: {
-    lat?: number;
-    lng?: number;
+  status: ProjectStatus;
+  customer?: {
+    name?: string;
+    phone?: string;
+    city?: string;
+  };
+  address: {
+    lat: number;
+    lng: number;
     city?: string;
     street?: string;
     number?: string;
+    neighborhood?: string;
   };
+  notes?: string;
+  createdAt?: any;
 };
+
+type RawProject = any;
 
 const containerStyle = {
   width: "100%",
   height: "100%",
 };
 
-// מרכז ברירת מחדל – אמצע ישראל בערך
 const DEFAULT_CENTER = { lat: 31.771959, lng: 35.217018 };
+
+const PIN_PATH =
+  "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z";
 
 export default function ProjectsMapCard() {
   const [items, setItems] = useState<ProjectMapItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [hoverId, setHoverId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<ProjectMapItem | null>(null);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
   const hasKey = Boolean(apiKey);
@@ -49,50 +76,86 @@ export default function ProjectsMapCard() {
     googleMapsApiKey: apiKey || "",
   });
 
+  // ---------- טעינת פרויקטים + מיפוי ----------
+
+  const loadProjects = async () => {
+    try {
+      setLoading(true);
+
+      const data = await api<RawProject[]>("/api/projects");
+      const arr = Array.isArray(data) ? data : [];
+
+      const withCoords: ProjectMapItem[] = arr
+        .filter((p) => {
+          const lat = p?.address?.lat;
+          const lng = p?.address?.lng;
+          return (
+            lat != null &&
+            lng != null &&
+            !Number.isNaN(Number(lat)) &&
+            !Number.isNaN(Number(lng))
+          );
+        })
+        .map((p) => {
+          const rawStatus =
+            (p.status as ProjectStatus | undefined) ??
+            (p.pipelineStatus as ProjectStatus | undefined);
+
+          const status: ProjectStatus =
+            rawStatus && PROJECT_STATUS_META[rawStatus] ? rawStatus : "quote";
+
+          return {
+            id: String(p.id),
+            name: p.name ?? "ללא שם",
+            status,
+            customer: p.customer,
+            address: {
+              lat: Number(p.address.lat),
+              lng: Number(p.address.lng),
+              city: p.address.city,
+              street: p.address.street,
+              number: p.address.number,
+              neighborhood: p.address.neighborhood,
+            },
+            notes: p.notes,
+            createdAt: p.createdAt,
+          };
+        });
+
+      setItems(withCoords);
+      console.log("items for map", withCoords); // להשאיר לבינתיים לדיבאג
+    } catch (e) {
+      console.error("Failed loading projects map:", e);
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    (async () => {
-      try {
-        const data = await api<any[]>("/api/projects");
-        const arr = Array.isArray(data) ? data : [];
-
-        // מסננים רק כאלה עם קואורדינטות, וממפים לסוג המצומצם שלנו
-        const withCoords: ProjectMapItem[] = arr
-          .filter((p) => {
-            const lat = p.address?.lat;
-            const lng = p.address?.lng;
-            return (
-              lat != null &&
-              lng != null &&
-              !Number.isNaN(Number(lat)) &&
-              !Number.isNaN(Number(lng))
-            );
-          })
-          .map((p) => ({
-            id: p.id,
-            name: p.name,
-            status: p.status ?? p.pipelineStatus,
-            address: p.address,
-          }));
-
-        setItems(withCoords);
-      } catch (e) {
-        console.error("Failed loading projects map:", e);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    loadProjects();
   }, []);
 
-  // חישוב מרכז מפה – ממוצע של ה־lat/lng או ברירת מחדל
+  // ריענון כשנורה אירוע גלובלי
+  useEffect(() => {
+    const handler = () => {
+      loadProjects();
+    };
+    window.addEventListener("projects:changed", handler);
+    return () => window.removeEventListener("projects:changed", handler);
+  }, []);
+
+  // ---------- מרכז מפה ----------
+
   const center = useMemo(() => {
     if (!items.length) return DEFAULT_CENTER;
 
     const lats = items
-      .map((p) => Number(p.address!.lat))
-      .filter((v) => !Number.isNaN(v));
+      .map((p) => p.address.lat)
+      .filter((v) => !Number.isNaN(Number(v)));
     const lngs = items
-      .map((p) => Number(p.address!.lng))
-      .filter((v) => !Number.isNaN(v));
+      .map((p) => p.address.lng)
+      .filter((v) => !Number.isNaN(Number(v)));
 
     if (!lats.length || !lngs.length) return DEFAULT_CENTER;
 
@@ -101,8 +164,19 @@ export default function ProjectsMapCard() {
     return { lat: avgLat, lng: avgLng };
   }, [items]);
 
-  // אם אין פרויקטים – זום יותר רחב
   const zoom = items.length ? 11 : 7;
+
+  const formatAddress = (p: ProjectMapItem) => {
+    const a = p.address || {};
+    const parts = [
+      a.street && a.number ? `${a.street} ${a.number}` : a.street,
+      a.city,
+      a.neighborhood && `שכונת ${a.neighborhood}`,
+    ].filter(Boolean);
+    return parts.join(", ");
+  };
+
+  // ---------- רינדור ----------
 
   return (
     <Card sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -169,39 +243,51 @@ export default function ProjectsMapCard() {
                 mapTypeControl: false,
               }}
             >
-              {items.map((p) =>
-                p.address?.lat != null && p.address?.lng != null ? (
+              {items.map((p) => {
+                const color = PROJECT_STATUS_META[p.status].color;
+
+                return (
                   <MarkerF
                     key={p.id}
                     position={{
-                      lat: Number(p.address.lat),
-                      lng: Number(p.address.lng),
+                      lat: p.address.lat,
+                      lng: p.address.lng,
                     }}
-                    title={p.name}
+                    title={`${p.name} – ${statusLabel(p.status)}`}
+                    icon={{
+                      path: PIN_PATH,
+                      fillColor: color,
+                      fillOpacity: 1,
+                      strokeColor: "#ffffff",
+                      strokeWeight: 1.5,
+                      scale: 1.4, // אפשר לשחק עם זה לגודל
+                      anchor: new window.google.maps.Point(12, 24), // שהחוד יהיה על הנקודה
+                    }}
                     onMouseOver={() => setHoverId(p.id)}
                     onMouseOut={() =>
                       setHoverId((cur) => (cur === p.id ? null : cur))
                     }
+                    onClick={() => setSelected(p)}
                   />
-                ) : null
-              )}
+                );
+              })}
 
-              {/* בועת מידע על ה־hover */}
+              {/* tooltip על hover */}
               {items.map((p) =>
-                hoverId === p.id && p.address?.lat && p.address.lng ? (
+                hoverId === p.id ? (
                   <InfoWindowF
                     key={`info-${p.id}`}
                     position={{
-                      lat: Number(p.address.lat),
-                      lng: Number(p.address.lng),
+                      lat: p.address.lat,
+                      lng: p.address.lng,
                     }}
                     onCloseClick={() => setHoverId(null)}
                   >
                     <div style={{ direction: "rtl" }}>
                       <strong>{p.name}</strong>
-                      {p.status && (
-                        <div>סטטוס: {statusLabel(p.status as any)}</div>
-                      )}
+                      <div>סטטוס: {statusLabel(p.status)}</div>
+                      {p.customer?.name && <div>לקוח/ה: {p.customer.name}</div>}
+                      {formatAddress(p) && <div>{formatAddress(p)}</div>}
                     </div>
                   </InfoWindowF>
                 ) : null
@@ -209,6 +295,61 @@ export default function ProjectsMapCard() {
             </GoogleMap>
           </Box>
         )}
+
+        {/* דיאלוג פרטי פרויקט בלחיצה */}
+        <Dialog
+          open={!!selected}
+          onClose={() => setSelected(null)}
+          fullWidth
+          maxWidth="sm"
+        >
+          {selected && (
+            <>
+              <DialogTitle sx={{ direction: "rtl" }}>
+                {selected.name}
+              </DialogTitle>
+              <DialogContent sx={{ direction: "rtl" }}>
+                <Grid container spacing={1}>
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2">סטטוס</Typography>
+                    <Typography variant="body2">
+                      {statusLabel(selected.status)}
+                    </Typography>
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2">לקוח</Typography>
+                    <Typography variant="body2">
+                      {selected.customer?.name || "לא הוגדר"}
+                    </Typography>
+                    {selected.customer?.phone && (
+                      <Typography variant="body2">
+                        טלפון: {selected.customer.phone}
+                      </Typography>
+                    )}
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2">כתובת</Typography>
+                    <Typography variant="body2">
+                      {formatAddress(selected) || "לא הוגדרה כתובת"}
+                    </Typography>
+                  </Grid>
+
+                  {selected.notes && (
+                    <Grid item xs={12}>
+                      <Typography variant="subtitle2">הערות</Typography>
+                      <Typography variant="body2">{selected.notes}</Typography>
+                    </Grid>
+                  )}
+                </Grid>
+              </DialogContent>
+              <DialogActions sx={{ direction: "rtl" }}>
+                <Button onClick={() => setSelected(null)}>סגירה</Button>
+              </DialogActions>
+            </>
+          )}
+        </Dialog>
       </CardContent>
     </Card>
   );
