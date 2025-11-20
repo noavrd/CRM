@@ -208,6 +208,8 @@ router.post("/", async (req, res) => {
         parcel: address?.parcel ?? "", // חלקה
         subParcel: address?.subParcel ?? "", // תת חלקה
         plot: address?.plot ?? "", // מגרש
+        lat: address?.lat ?? null,
+        lng: address?.lng ?? null,
       },
 
       // פרטי נכס

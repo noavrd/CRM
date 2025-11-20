@@ -265,17 +265,19 @@ export default function CreateProjectDialog({
                 ]
                   .filter(Boolean)
                   .join(" ")}
-                onSelectAddress={(addr) =>
+                onSelectAddress={(addr) => {
                   setForm({
                     ...form,
                     address: {
                       ...form.address,
-                      city: addr.city || "",
-                      street: addr.street || "",
-                      number: addr.houseNumber || "",
+                      city: addr.city,
+                      street: addr.street,
+                      number: addr.houseNumber,
+                      lat: Number(addr.lat),
+                      lng: Number(addr.lng),
                     },
-                  })
-                }
+                  });
+                }}
               />
             </Box>
 

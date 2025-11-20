@@ -13,6 +13,7 @@
     "@mui/material": "^7.3.2",
     "@mui/stylis-plugin-rtl": "^7.3.3",
     "@mui/x-charts": "^8.15.0",
+    "@react-google-maps/api": "^2.20.7",
     "firebase": "^12.3.0",
     "luxon": "^3.7.2",
     "react": "^19.1.0",

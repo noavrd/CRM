@@ -1,0 +1,176 @@
+// src/features/projects/ProjectsMapCard.tsx
+
+import { useEffect, useState, useMemo } from "react";
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  CircularProgress,
+  Box,
+  Typography,
+} from "@mui/material";
+import { api } from "@/api/http";
+import { GoogleMap, MarkerF, useJsApiLoader } from "@react-google-maps/api";
+
+type ProjectMapItem = {
+  id: string;
+  name: string;
+  address?: {
+    lat?: number;
+    lng?: number;
+    city?: string;
+    street?: string;
+    number?: string;
+  };
+};
+
+const containerStyle = {
+  width: "100%",
+  height: "100%",
+};
+
+// מרכז ברירת מחדל – אמצע ישראל בערך
+const DEFAULT_CENTER = { lat: 31.771959, lng: 35.217018 };
+
+export default function ProjectsMapCard() {
+  const [items, setItems] = useState<ProjectMapItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+  const hasKey = Boolean(apiKey);
+  const { isLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: apiKey || "",
+  });
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await api<ProjectMapItem[]>("/api/projects");
+        const arr = Array.isArray(data) ? data : [];
+
+        // רק כאלה שיש להם קואורדינטות תקינות
+        const withCoords = arr.filter((p) => {
+          const lat = p.address?.lat;
+          const lng = p.address?.lng;
+          return (
+            lat != null &&
+            lng != null &&
+            !Number.isNaN(Number(lat)) &&
+            !Number.isNaN(Number(lng))
+          );
+        });
+
+        setItems(withCoords);
+      } catch (e) {
+        console.error("Failed loading projects map:", e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  // חישוב מרכז מפה – ממוצע של כל ה־lat/lng או ברירת מחדל
+  const center = useMemo(() => {
+    if (!items.length) return DEFAULT_CENTER;
+
+    const lats = items
+      .map((p) => Number(p.address!.lat))
+      .filter((v) => !Number.isNaN(v));
+    const lngs = items
+      .map((p) => Number(p.address!.lng))
+      .filter((v) => !Number.isNaN(v));
+
+    if (!lats.length || !lngs.length) return DEFAULT_CENTER;
+
+    const avgLat = lats.reduce((s, v) => s + v, 0) / lats.length;
+    const avgLng = lngs.reduce((s, v) => s + v, 0) / lngs.length;
+    return { lat: avgLat, lng: avgLng };
+  }, [items]);
+
+  // אם אין פרויקטים – זום יותר רחב
+  const zoom = items.length ? 11 : 7;
+
+  return (
+    <Card sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <CardHeader title="מפת פרויקטים" />
+      <CardContent sx={{ flex: 1, p: 0, position: "relative" }}>
+        {/* אין מפתח בכלל */}
+        {!hasKey && (
+          <Box
+            sx={{
+              height: "100%",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              p: 2,
+            }}
+          >
+            <Typography color="text.secondary" align="center">
+              לא הוגדר מפתח Google Maps (VITE_GOOGLE_MAPS_API_KEY).
+            </Typography>
+          </Box>
+        )}
+
+        {/* שגיאה בטעינת Maps */}
+        {hasKey && loadError && (
+          <Box
+            sx={{
+              height: "100%",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              p: 2,
+            }}
+          >
+            <Typography color="text.secondary" align="center">
+              לא ניתן לטעון את מפות גוגל. בדקי את מפתח ה־API וההרשאות.
+            </Typography>
+          </Box>
+        )}
+
+        {/* טעינה */}
+        {hasKey && !loadError && (!isLoaded || loading) && (
+          <Box
+            sx={{
+              height: "100%",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <CircularProgress />
+          </Box>
+        )}
+
+        {/* מפה דינמית – תמיד, גם אם אין פרויקטים */}
+        {hasKey && isLoaded && !loadError && !loading && (
+          <Box sx={{ width: "100%", height: "100%" }}>
+            <GoogleMap
+              mapContainerStyle={containerStyle}
+              center={center}
+              zoom={zoom}
+              options={{
+                fullscreenControl: false,
+                streetViewControl: false,
+                mapTypeControl: false,
+              }}
+            >
+              {items.map((p) =>
+                p.address?.lat != null && p.address?.lng != null ? (
+                  <MarkerF
+                    key={p.id}
+                    position={{
+                      lat: Number(p.address.lat),
+                      lng: Number(p.address.lng),
+                    }}
+                    title={p.name}
+                  />
+                ) : null
+              )}
+            </GoogleMap>
+          </Box>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

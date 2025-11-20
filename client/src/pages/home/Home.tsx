@@ -4,6 +4,7 @@ import ProjectsDonutCard from "../projects/ProjectsDonutCard";
 import TasksListCard from "../tasks/TasksListCard";
 import CalendarCard from "../events/CalendarCard";
 import NextVisits from "../visits/NextVisitsCard";
+import ProjectsMapCard from "../projects/ProjectsMapCard";
 
 const H_FIRST = { xs: 350, sm: 260, md: 260, lg: 280 };
 const H_SECOND = { xs: 350, sm: 290, md: 320, lg: 340 };
@@ -61,9 +62,15 @@ export default function Home() {
           </Box>
         </Grid>
 
-        <Grid size={{ xs: 12 }} sx={cellSx}>
+        <Grid size={{ xs: 12, md: 6 }} sx={cellSx}>
           <Box sx={wrapSx(H_SECOND)}>
             <CalendarCard />
+          </Box>
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6 }} sx={cellSx}>
+          <Box sx={wrapSx(H_SECOND)}>
+            <ProjectsMapCard />
           </Box>
         </Grid>
       </Grid>

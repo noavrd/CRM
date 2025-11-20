@@ -131,6 +131,8 @@ export type ProjectForm = {
     parcel?: string;
     subParcel?: string;
     plot?: string;
+    lat?: number;
+    lng?: number;
   };
 
   asset: {

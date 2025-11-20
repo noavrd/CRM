@@ -52,6 +52,8 @@ export const defaultProjectForm: ProjectForm = {
     parcel: "",
     subParcel: "",
     plot: "",
+    lat: "",
+    lng: "",
   },
   asset: {
     floor: "",
