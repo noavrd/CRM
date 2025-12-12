@@ -47,7 +47,7 @@ export const PROJECT_STATUS_META: Record<ProjectStatus, ProjectStatusMeta> = {
   post_visit: {
     chipColor: "warning",
     label: "לאחר ביקור",
-    color: "#F2780C",
+    color: "#f35642ff",
     short: "אחרי",
   },
   in_work: {

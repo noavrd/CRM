@@ -68,15 +68,28 @@ export default function ProjectsDonutCard() {
     }
   };
 
+  const WORK_STATUSES: ProjectStatus[] = PROJECT_STATUS_ORDER.filter(
+    (s) => s !== "done"
+  );
+
   const seriesData = useMemo(
     () =>
-      PROJECT_STATUS_ORDER.map((key, i) => ({
+      WORK_STATUSES.map((key, i) => ({
         id: i,
         value: Number((stats as any)[key] ?? 0),
         label: PROJECT_STATUS_META[key].label,
         color: PROJECT_STATUS_META[key].color,
-        key, // <- ProjectStatus
+        key,
       })),
+    [stats]
+  );
+
+  const activeTotal = useMemo(
+    () =>
+      WORK_STATUSES.reduce(
+        (sum, key) => sum + Number((stats as any)[key] ?? 0),
+        0
+      ),
     [stats]
   );
 
@@ -169,7 +182,7 @@ export default function ProjectsDonutCard() {
                 סה״כ
               </Typography>
               <Typography variant="h4" fontWeight={700}>
-                {stats.total ?? 0}
+                {activeTotal}
               </Typography>
             </Box>
           </Box>

@@ -24,8 +24,8 @@ import {
   PROJECT_STATUS_META,
   type ProjectStatus,
 } from "@/lib/projectStatus";
-import { useMemo, useState } from "react";
-import { defaultProjectForm } from "../defaultValues";
+import { useEffect, useMemo, useState } from "react";
+import { defaultProjectForm, mergeProjectForm } from "../defaultValues";
 import { type ProjectForm } from "../types";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 
@@ -62,21 +62,24 @@ export default function CreateProjectDialog({
   open,
   onClose,
   onSubmit,
+  initial,
+  mode = "create",
 }: {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: ProjectForm) => Promise<void>;
+  initial?: ProjectForm;
+  mode?: "create" | "edit";
 }) {
-  const [form, setForm] = useState<ProjectForm>(defaultProjectForm);
+  const [form, setForm] = useState<ProjectForm>(mergeProjectForm(initial));
   const [step, setStep] = useState<StepKey>("customer");
 
   const canSave = useMemo(() => form.name.trim().length > 0, [form.name]);
 
   const close = () => {
-    setForm(defaultProjectForm);
-    setStep("customer");
     onClose();
   };
+
   const next = () =>
     setStep(
       (prev) =>
@@ -89,14 +92,22 @@ export default function CreateProjectDialog({
       (prev) =>
         steps[Math.max(steps.findIndex((s) => s.key === prev) - 1, 0)].key
     );
+
   const save = async () => {
     await onSubmit(form);
-    close();
   };
+
+  useEffect(() => {
+    if (!open) return;
+    setForm(initial ?? defaultProjectForm);
+    setStep("customer");
+  }, [open, initial]);
 
   return (
     <Dialog open={open} onClose={close} fullWidth maxWidth="md">
-      <DialogTitle>הוספת פרויקט</DialogTitle>
+      <DialogTitle>
+        {mode === "edit" ? "עריכת פרויקט" : "הוספת פרויקט"}
+      </DialogTitle>
 
       <DialogContent dividers sx={{ pt: 1 }}>
         <Box

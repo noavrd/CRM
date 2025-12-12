@@ -98,14 +98,16 @@ export default function ProjectsMapCard() {
   const isValidLatLng = (lat: any, lng: any) => {
     const la = Number(lat);
     const ln = Number(lng);
-    return (
-      Number.isFinite(la) &&
-      Number.isFinite(ln) &&
-      la >= -90 &&
-      la <= 90 &&
-      ln >= -180 &&
-      ln <= 180
-    );
+
+    if (!Number.isFinite(la) || !Number.isFinite(ln)) return false;
+
+    // תחום חוקי של קואורדינטות
+    if (la < -90 || la > 90 || ln < -180 || ln > 180) return false;
+
+    // לא מציגים מיקום ברירת מחדל (אוקיינוס)
+    if (la === 0 && ln === 0) return false;
+
+    return true;
   };
 
   const loadProjects = async () => {

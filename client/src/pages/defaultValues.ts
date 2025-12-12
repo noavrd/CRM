@@ -52,8 +52,8 @@ export const defaultProjectForm: ProjectForm = {
     parcel: "",
     subParcel: "",
     plot: "",
-    lat: "",
-    lng: "",
+    lat: undefined,
+    lng: undefined,
   },
   asset: {
     floor: "",
@@ -78,3 +78,42 @@ export const defaultProjectForm: ProjectForm = {
   payments: [],
   notes: "",
 };
+
+export function mergeProjectForm(initial?: Partial<ProjectForm>): ProjectForm {
+  if (!initial) return defaultProjectForm;
+
+  return {
+    ...defaultProjectForm,
+    ...initial,
+
+    customer: {
+      ...defaultProjectForm.customer,
+      ...(initial.customer ?? {}),
+    },
+
+    address: {
+      ...defaultProjectForm.address,
+      ...(initial.address ?? {}),
+    },
+
+    asset: {
+      ...defaultProjectForm.asset,
+      ...(initial.asset ?? {}),
+    },
+
+    visit: {
+      ...defaultProjectForm.visit,
+      ...(initial.visit ?? {}),
+    },
+
+    payments: initial.payments?.length
+      ? initial.payments.map((p) => ({
+          amount: p.amount ?? 0,
+          description: p.description ?? "",
+          plusVAT: p.plusVAT ?? false,
+        }))
+      : [{ amount: 0, description: "", plusVAT: false }],
+
+    notes: initial.notes ?? "",
+  };
+}

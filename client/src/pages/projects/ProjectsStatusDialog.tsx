@@ -1,5 +1,3 @@
-// src/features/projects/ProjectStatusDialog.tsx
-
 import { useEffect, useState } from "react";
 import {
   Dialog,

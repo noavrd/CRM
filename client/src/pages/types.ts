@@ -163,6 +163,30 @@ export type ProjectForm = {
 
 /** מה שמתקבל ברשימות */
 export type Project = {
+  asset: {
+    floor?: string | undefined;
+    rooms?: string | undefined;
+    areaSqm?: string | undefined;
+    propertyType?: string | undefined;
+    usage?: string | undefined;
+    purpose?: string | undefined;
+    appraisalDueDate?: string | undefined;
+    submissionDueDate?: string | undefined;
+    assessor?: string | undefined;
+    referrer?: string | undefined;
+  };
+  visit: {
+    contactRole?: string | undefined;
+    contactName?: string | undefined;
+    contactPhone?: string | undefined;
+    visitDate?: string | undefined;
+    visitTime?: string | undefined;
+    notes?: string | undefined;
+  };
+  notes: string;
+  payments: any;
+  address: any;
+  status: ProjectStatus | undefined;
   id: ID;
   name: string;
   pipelineStatus?: ProjectStatus;

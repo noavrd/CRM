@@ -1,3 +1,5 @@
+// src/components/table/TableShell.tsx
+
 import {
   Card,
   CardHeader,
@@ -12,8 +14,15 @@ import {
   Typography,
   Pagination,
   Stack,
+  IconButton,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from "@mui/material";
-import type { ReactNode } from "react";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import type { ReactNode, MouseEvent } from "react";
+import { useState } from "react";
 
 export type Column<T> = {
   id: string;
@@ -21,6 +30,13 @@ export type Column<T> = {
   width?: number | string;
   align?: "left" | "right" | "center";
   render: (row: T) => ReactNode;
+};
+
+export type RowAction<T> = {
+  label: string;
+  onClick: (row: T) => void;
+  icon?: ReactNode;
+  color: "primary" | "secondary" | "success" | "error" | "warning" | "info";
 };
 
 export default function TableShell<T>({
@@ -33,6 +49,7 @@ export default function TableShell<T>({
   pages,
   onPageChange,
   emptyText = "אין נתונים להצגה",
+  rowActions,
 }: {
   title: ReactNode;
   actions?: ReactNode; // כפתורי "הוספה" וכו'
@@ -43,7 +60,22 @@ export default function TableShell<T>({
   pages?: number;
   onPageChange?: (p: number) => void;
   emptyText?: string;
+  /** פונקציה ג׳נרית שמחזירה מערך פעולות לכל שורה */
+  rowActions?: (row: T) => RowAction<T>[];
 }) {
+  const [menuAnchorEl, setMenuAnchorEl] = useState<HTMLElement | null>(null);
+  const [menuRow, setMenuRow] = useState<T | null>(null);
+
+  const handleOpenMenu = (row: T, event: MouseEvent<HTMLElement>) => {
+    setMenuRow(row);
+    setMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleCloseMenu = () => {
+    setMenuRow(null);
+    setMenuAnchorEl(null);
+  };
+
   return (
     <Card variant="outlined" sx={{ borderRadius: 4 }}>
       <CardHeader title={title} action={actions} />
@@ -65,13 +97,18 @@ export default function TableShell<T>({
                     </Typography>
                   </TableCell>
                 ))}
+                {rowActions && (
+                  <TableCell align="center" sx={{ width: 48 }}>
+                    {/* כותרת ריקה לעמודת 3 הנקודות */}
+                  </TableCell>
+                )}
               </TableRow>
             </TableHead>
 
             <TableBody>
               {rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={columns.length}>
+                  <TableCell colSpan={columns.length + (rowActions ? 1 : 0)}>
                     <Typography
                       color="text.secondary"
                       sx={{ py: 3, textAlign: "center" }}
@@ -82,18 +119,59 @@ export default function TableShell<T>({
                 </TableRow>
               ) : (
                 rows.map((r, i) => (
-                  <TableRow key={i}>
+                  <TableRow key={i} hover>
                     {columns.map((c) => (
                       <TableCell key={c.id} align={c.align ?? "right"}>
                         {c.render(r)}
                       </TableCell>
                     ))}
+
+                    {rowActions && (
+                      <TableCell align="center">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => handleOpenMenu(r, e)}
+                        >
+                          <MoreVertIcon fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
             </TableBody>
           </Table>
         </Box>
+
+        {/* תפריט שורות ג׳נרי */}
+        {rowActions && (
+          <Menu
+            anchorEl={menuAnchorEl}
+            open={Boolean(menuAnchorEl) && Boolean(menuRow)}
+            onClose={handleCloseMenu}
+          >
+            {menuRow &&
+              rowActions(menuRow).map((action, idx) => (
+                <MenuItem
+                  key={idx}
+                  onClick={() => {
+                    action.onClick(menuRow);
+                    handleCloseMenu();
+                  }}
+                  sx={
+                    action.color
+                      ? {
+                          color: (theme) => theme.palette[action.color].main,
+                        }
+                      : undefined
+                  }
+                >
+                  {action.icon && <ListItemIcon>{action.icon}</ListItemIcon>}
+                  <ListItemText primary={action.label} />
+                </MenuItem>
+              ))}
+          </Menu>
+        )}
 
         {pages && pages > 1 && onPageChange && (
           <Stack alignItems="center" sx={{ mt: 2 }}>
