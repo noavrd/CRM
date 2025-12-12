@@ -68,6 +68,7 @@ export default function ProjectsMapCard() {
   const [loading, setLoading] = useState(true);
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [selected, setSelected] = useState<ProjectMapItem | null>(null);
+  const [map, setMap] = useState<google.maps.Map | null>(null);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
   const hasKey = Boolean(apiKey);
@@ -78,6 +79,19 @@ export default function ProjectsMapCard() {
 
   // ---------- טעינת פרויקטים + מיפוי ----------
 
+  const isValidLatLng = (lat: any, lng: any) => {
+    const la = Number(lat);
+    const ln = Number(lng);
+    return (
+      Number.isFinite(la) &&
+      Number.isFinite(ln) &&
+      la >= -90 &&
+      la <= 90 &&
+      ln >= -180 &&
+      ln <= 180
+    );
+  };
+
   const loadProjects = async () => {
     try {
       setLoading(true);
@@ -86,16 +100,7 @@ export default function ProjectsMapCard() {
       const arr = Array.isArray(data) ? data : [];
 
       const withCoords: ProjectMapItem[] = arr
-        .filter((p) => {
-          const lat = p?.address?.lat;
-          const lng = p?.address?.lng;
-          return (
-            lat != null &&
-            lng != null &&
-            !Number.isNaN(Number(lat)) &&
-            !Number.isNaN(Number(lng))
-          );
-        })
+        .filter((p) => isValidLatLng(p?.address?.lat, p?.address?.lng))
         .map((p) => {
           const rawStatus =
             (p.status as ProjectStatus | undefined) ??
@@ -131,6 +136,21 @@ export default function ProjectsMapCard() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!map) return;
+    if (!items.length) return;
+
+    const bounds = new window.google.maps.LatLngBounds();
+    items.forEach((p) =>
+      bounds.extend({ lat: p.address.lat, lng: p.address.lng })
+    );
+    map.fitBounds(bounds);
+
+    if (items.length === 1) {
+      map.setZoom(14);
+    }
+  }, [map, items]);
 
   useEffect(() => {
     loadProjects();
@@ -235,8 +255,9 @@ export default function ProjectsMapCard() {
           <Box sx={{ width: "100%", height: "100%" }}>
             <GoogleMap
               mapContainerStyle={containerStyle}
-              center={center}
+              center={DEFAULT_CENTER}
               zoom={zoom}
+              onLoad={(m) => setMap(m)}
               options={{
                 fullscreenControl: false,
                 streetViewControl: false,
