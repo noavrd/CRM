@@ -14,6 +14,13 @@ import {
   DialogActions,
   Button,
   Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Checkbox,
+  ListItemText,
+  Stack,
 } from "@mui/material";
 import {
   GoogleMap,
@@ -26,6 +33,7 @@ import {
   PROJECT_STATUS_META,
   type ProjectStatus,
   statusLabel,
+  PROJECT_STATUS_ORDER,
 } from "@/lib/projectStatus";
 
 // ---------- סוגים ----------
@@ -69,6 +77,9 @@ export default function ProjectsMapCard() {
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [selected, setSelected] = useState<ProjectMapItem | null>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
+  const [selectedStatuses, setSelectedStatuses] = useState<ProjectStatus[]>([
+    ...PROJECT_STATUS_ORDER,
+  ]);
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
   const hasKey = Boolean(apiKey);
@@ -78,6 +89,12 @@ export default function ProjectsMapCard() {
   });
 
   // ---------- טעינת פרויקטים + מיפוי ----------
+
+  const filteredItems = useMemo(() => {
+    if (!selectedStatuses.length) return [];
+    const allowed = new Set(selectedStatuses);
+    return items.filter((p) => allowed.has(p.status));
+  }, [items, selectedStatuses]);
 
   const isValidLatLng = (lat: any, lng: any) => {
     const la = Number(lat);
@@ -200,7 +217,53 @@ export default function ProjectsMapCard() {
 
   return (
     <Card sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <CardHeader title="מפת פרויקטים" />
+      <CardHeader
+        title="מפת פרויקטים"
+        action={
+          <FormControl size="small" sx={{ width: 220 }}>
+            <InputLabel id="map-status-filter-label">סטטוסים</InputLabel>
+            <Select
+              labelId="map-status-filter-label"
+              label="סטטוסים"
+              multiple
+              value={selectedStatuses}
+              onChange={(e) =>
+                setSelectedStatuses(e.target.value as ProjectStatus[])
+              }
+              MenuProps={{
+                PaperProps: {
+                  sx: { maxWidth: 260 },
+                },
+              }}
+              renderValue={(selected) => {
+                const labels = (selected as ProjectStatus[])
+                  .map(statusLabel)
+                  .join(", ");
+                return (
+                  <Box
+                    sx={{
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                    title={labels} // tooltip מלא בהובר
+                  >
+                    {labels}
+                  </Box>
+                );
+              }}
+            >
+              {PROJECT_STATUS_ORDER.map((s) => (
+                <MenuItem key={s} value={s}>
+                  <Checkbox checked={selectedStatuses.includes(s)} />
+                  <ListItemText primary={statusLabel(s)} />
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        }
+      />
+
       <CardContent sx={{ flex: 1, p: 0, position: "relative" }}>
         {/* אין מפתח בכלל */}
         {!hasKey && (
@@ -264,7 +327,7 @@ export default function ProjectsMapCard() {
                 mapTypeControl: false,
               }}
             >
-              {items.map((p) => {
+              {filteredItems.map((p) => {
                 const color = PROJECT_STATUS_META[p.status].color;
 
                 return (
@@ -294,7 +357,7 @@ export default function ProjectsMapCard() {
               })}
 
               {/* tooltip על hover */}
-              {items.map((p) =>
+              {filteredItems.map((p) =>
                 hoverId === p.id ? (
                   <InfoWindowF
                     key={`info-${p.id}`}

@@ -62,6 +62,7 @@ export default function ProjectsDonutCard() {
       success("פרויקט נשמר");
       setOpen(false);
       await load();
+      window.dispatchEvent(new Event("projects:changed"));
     } catch {
       error("שגיאה בשמירת פרויקט");
     }
