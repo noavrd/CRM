@@ -115,7 +115,7 @@ export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
             <MenuItem onClick={handleLogout}>התנתקות</MenuItem>
           </Menu>
           <Typography variant="h6" sx={{ fontWeight: 700, letterSpacing: 0.3 }}>
-            CRM
+            שמאות מקרקעין למקצוענים
           </Typography>
         </Toolbar>
       </AppBar>
