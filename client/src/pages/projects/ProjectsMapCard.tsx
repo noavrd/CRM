@@ -74,8 +74,7 @@ const PIN_PATH =
 export default function ProjectsMapCard() {
   const [items, setItems] = useState<ProjectMapItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [hoverId, setHoverId] = useState<string | null>(null);
-  const [selected, setSelected] = useState<ProjectMapItem | null>(null);
+  const [infoId, setInfoId] = useState<string | null>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [selectedStatuses, setSelectedStatuses] = useState<ProjectStatus[]>([
     ...PROJECT_STATUS_ORDER,
@@ -221,7 +220,7 @@ export default function ProjectsMapCard() {
         title="מפת פרויקטים"
         action={
           <FormControl size="small" sx={{ width: 220 }}>
-            <InputLabel id="map-status-filter-label">סטטוסים</InputLabel>
+            <InputLabel id="map-status-filter-label">סטטוס</InputLabel>
             <Select
               labelId="map-status-filter-label"
               label="סטטוסים"
@@ -326,6 +325,7 @@ export default function ProjectsMapCard() {
                 streetViewControl: false,
                 mapTypeControl: false,
               }}
+              onClick={() => setInfoId(null)}
             >
               {filteredItems.map((p) => {
                 const color = PROJECT_STATUS_META[p.status].color;
@@ -347,25 +347,23 @@ export default function ProjectsMapCard() {
                       scale: 1.4, // אפשר לשחק עם זה לגודל
                       anchor: new window.google.maps.Point(12, 24), // שהחוד יהיה על הנקודה
                     }}
-                    onMouseOver={() => setHoverId(p.id)}
-                    onMouseOut={() =>
-                      setHoverId((cur) => (cur === p.id ? null : cur))
+                    onClick={() =>
+                      setInfoId((cur) => (cur === p.id ? null : p.id))
                     }
-                    onClick={() => setSelected(p)}
                   />
                 );
               })}
 
               {/* tooltip על hover */}
               {filteredItems.map((p) =>
-                hoverId === p.id ? (
+                infoId === p.id ? (
                   <InfoWindowF
                     key={`info-${p.id}`}
                     position={{
                       lat: p.address.lat,
                       lng: p.address.lng,
                     }}
-                    onCloseClick={() => setHoverId(null)}
+                    onCloseClick={() => setInfoId(null)}
                   >
                     <div style={{ direction: "rtl" }}>
                       <strong>{p.name}</strong>
@@ -379,61 +377,6 @@ export default function ProjectsMapCard() {
             </GoogleMap>
           </Box>
         )}
-
-        {/* דיאלוג פרטי פרויקט בלחיצה */}
-        <Dialog
-          open={!!selected}
-          onClose={() => setSelected(null)}
-          fullWidth
-          maxWidth="sm"
-        >
-          {selected && (
-            <>
-              <DialogTitle sx={{ direction: "rtl" }}>
-                {selected.name}
-              </DialogTitle>
-              <DialogContent sx={{ direction: "rtl" }}>
-                <Grid container spacing={1}>
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle2">סטטוס</Typography>
-                    <Typography variant="body2">
-                      {statusLabel(selected.status)}
-                    </Typography>
-                  </Grid>
-
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle2">לקוח</Typography>
-                    <Typography variant="body2">
-                      {selected.customer?.name || "לא הוגדר"}
-                    </Typography>
-                    {selected.customer?.phone && (
-                      <Typography variant="body2">
-                        טלפון: {selected.customer.phone}
-                      </Typography>
-                    )}
-                  </Grid>
-
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle2">כתובת</Typography>
-                    <Typography variant="body2">
-                      {formatAddress(selected) || "לא הוגדרה כתובת"}
-                    </Typography>
-                  </Grid>
-
-                  {selected.notes && (
-                    <Grid item xs={12}>
-                      <Typography variant="subtitle2">הערות</Typography>
-                      <Typography variant="body2">{selected.notes}</Typography>
-                    </Grid>
-                  )}
-                </Grid>
-              </DialogContent>
-              <DialogActions sx={{ direction: "rtl" }}>
-                <Button onClick={() => setSelected(null)}>סגירה</Button>
-              </DialogActions>
-            </>
-          )}
-        </Dialog>
       </CardContent>
     </Card>
   );
