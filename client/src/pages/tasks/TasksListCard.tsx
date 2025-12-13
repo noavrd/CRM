@@ -32,6 +32,7 @@ export default function TasksListCard() {
           typeof t?.assignee === "string" && t.assignee.trim()
             ? t.assignee
             : undefined,
+        title: String(t?.title ?? "").trim(),
         description: String(t?.description ?? ""),
         status: (t?.status ?? "todo") as Task["status"],
         dueDate: t?.dueDate ? DateTime.fromISO(String(t.dueDate)) : undefined,
@@ -99,7 +100,7 @@ export default function TasksListCard() {
               {tasks.map((t) => (
                 <ListItem key={t.id} disablePadding>
                   <ListItemText
-                    primary={t.description}
+                    primary={t.title || "ללא שם"}
                     secondary={[
                       t.status === "done"
                         ? "בוצעה"

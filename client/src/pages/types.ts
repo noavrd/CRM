@@ -208,6 +208,7 @@ export type Task = {
   assignee?: string;
   dueDate?: DateTime;
   description: string;
+  title: string;
   status: TaskStatus;
 };
 
@@ -217,6 +218,7 @@ export type ServerTask = {
   projectId: ID;
   assignee: string | null;
   description: string;
+  title: string;
   status: TaskStatus;
   dueDate: string | null;
 };
@@ -226,6 +228,7 @@ export type TasksResponse = { items: ServerTask[] };
 export type UiTask = {
   id: ID;
   title: string;
+  description?: string;
   dueDate?: string;
   status?: UiTaskStatus;
 };

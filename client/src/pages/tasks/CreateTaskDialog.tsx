@@ -31,6 +31,7 @@ const emptyForm: Task = {
   projectId: "",
   assignee: "",
   dueDate: DateTime.now(),
+  title: "",
   description: "",
   status: "todo",
 };
@@ -66,8 +67,11 @@ export default function CreateTaskDialog({
   }, [open, initial, currentUserName]);
 
   const canSave = useMemo(
-    () => Boolean(form.description.trim().length > 0),
-    [form.description]
+    () =>
+      Boolean(
+        form.title.trim().length > 0 && form.description.trim().length > 0
+      ),
+    [form.title, form.description]
   );
 
   const reset = () =>
@@ -99,8 +103,33 @@ export default function CreateTaskDialog({
             בחירת משימה
           </Typography>
 
+          <Grid container spacing={2} direction="column" sx={{ mb: 2 }}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="כותרת"
+                value={form.title}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, title: e.target.value }))
+                }
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                minRows={6}
+                label="תיאור..."
+                value={form.description}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, description: e.target.value }))
+                }
+              />
+            </Grid>
+          </Grid>
+
           <Grid container spacing={2} sx={{ mb: 2 }}>
-            <Grid item xs={12} md={8}>
+            <Grid item xs={12} md={3}>
               <TextField
                 select
                 fullWidth
@@ -110,9 +139,16 @@ export default function CreateTaskDialog({
                   setForm((f) => ({ ...f, projectId: e.target.value }))
                 }
                 helperText={
-                  !projects.length ? "אין פרויקטים לבחירה עדיין" : " "
+                  !projects.length ? "אין פרויקטים לבחירה עדיין" : null
                 }
-                sx={{ width: 250 }}
+                sx={{
+                  "& .MuiSelect-select": {
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    width: 150,
+                  },
+                }}
                 slotProps={{
                   select: {
                     displayEmpty: true,
@@ -137,7 +173,7 @@ export default function CreateTaskDialog({
                     key={p.id}
                     value={p.id}
                     sx={{
-                      maxWidth: 420,
+                      maxWidth: 350,
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
@@ -149,11 +185,12 @@ export default function CreateTaskDialog({
               </TextField>
             </Grid>
 
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={3}>
               <TextField
                 type="date"
                 fullWidth
                 label="תאריך יעד לביצוע"
+                sx={{ width: 200 }}
                 InputLabelProps={{ shrink: true }}
                 value={form.dueDate?.toISODate() ?? ""}
                 onChange={(e) => {
@@ -167,7 +204,7 @@ export default function CreateTaskDialog({
               />
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} md={3}>
               <TextField
                 fullWidth
                 label="משויך לשמאי"
@@ -175,15 +212,17 @@ export default function CreateTaskDialog({
                 onChange={(e) =>
                   setForm((f) => ({ ...f, assignee: e.target.value }))
                 }
+                sx={{ width: 200 }}
               />
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} md={3}>
               <TextField
                 select
                 fullWidth
                 label="סטטוס"
                 value={form.status}
+                sx={{ width: 200 }}
                 onChange={(e) =>
                   setForm((f) => ({
                     ...f,
@@ -201,21 +240,6 @@ export default function CreateTaskDialog({
                   </MenuItem>
                 ))}
               </TextField>
-            </Grid>
-          </Grid>
-
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                multiline
-                minRows={6}
-                label="כתבי משימה חדשה…"
-                value={form.description}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, description: e.target.value }))
-                }
-              />
             </Grid>
           </Grid>
         </Box>

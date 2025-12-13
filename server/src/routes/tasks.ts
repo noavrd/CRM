@@ -25,6 +25,7 @@ router.get("/", async (req, res) => {
         projectId: data.projectId ?? "",
         assignee: data.assignee ?? null,
         description: data.description ?? "",
+        title: data.title ?? "",
         status: data.status ?? "todo",
         // נחזיר כ-YYYY-MM-DD כדי לשמור עקביות עם ה-FE
         dueDate: dueTs ? dueTs.toDate().toISOString().slice(0, 10) : null,
@@ -52,7 +53,7 @@ router.post("/", async (req, res) => {
     const userId = (req as any).userId as string | undefined;
     if (!userId) return res.status(401).json({ error: "unauthorized" });
 
-    const { projectId, assignee, dueDate, description, status } =
+    const { projectId, assignee, dueDate, title, description, status } =
       req.body || {};
 
     const normalizedProjectId =
@@ -60,6 +61,9 @@ router.post("/", async (req, res) => {
         ? projectId.trim()
         : null;
 
+    if (!title || typeof title !== "string" || !title.trim()) {
+      return res.status(400).json({ error: "title is required" });
+    }
     if (
       !description ||
       typeof description !== "string" ||
@@ -75,6 +79,7 @@ router.post("/", async (req, res) => {
       userId,
       projectId: normalizedProjectId,
       assignee: assignee ?? null,
+      title: title.trim(),
       description: description.trim(),
       status: status ?? "todo",
       dueDate: dueTs,
@@ -101,7 +106,7 @@ router.put("/:id", async (req, res) => {
     }
 
     const patch: any = {};
-    const { projectId, assignee, dueDate, description, status } =
+    const { projectId, assignee, dueDate, title, description, status } =
       req.body || {};
 
     if (projectId !== undefined) {
@@ -112,6 +117,7 @@ router.put("/:id", async (req, res) => {
     }
     if (assignee !== undefined) patch.assignee = assignee;
     if (description !== undefined) patch.description = String(description);
+    if (title !== undefined) patch.title = String(title);
     if (status !== undefined) patch.status = status;
     if (dueDate !== undefined) {
       patch.dueDate = dueDate ? Timestamp.fromDate(new Date(dueDate)) : null;

@@ -39,7 +39,8 @@ export default function TasksPage() {
 
       const normalized: UiTask[] = raw.map((t) => ({
         id: String(t?.id ?? ""),
-        title: String((t as any)?.title ?? t?.description ?? "").trim(),
+        title: String(t?.title ?? "").trim(),
+        description: String(t?.description ?? ""),
         dueDate: t?.dueDate ?? undefined,
         status:
           t?.status === "done"
@@ -75,7 +76,13 @@ export default function TasksPage() {
     const list = Array.isArray(rows) ? rows : [];
     const needle = q.toLowerCase();
     return needle
-      ? list.filter((r) => r.title.toLowerCase().includes(needle))
+      ? list.filter((r) =>
+          [r.title, r.description]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase()
+            .includes(needle)
+        )
       : list;
   }, [rows, q]);
 
@@ -133,6 +140,7 @@ export default function TasksPage() {
         body: JSON.stringify({
           projectId: data.projectId ? data.projectId : null, // "" => null
           assignee: data.assignee ?? null,
+          title: data.title,
           description: data.description,
           status: data.status,
           dueDate: data.dueDate ? data.dueDate.toISODate() : null,
