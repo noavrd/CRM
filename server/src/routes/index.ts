@@ -8,10 +8,16 @@ import visitsRouter from "./visits";
 import tasksRouter from "./tasks";
 import eventsRouter from "./events";
 import placesRouter from "./places";
+import googleCalendarRouter from "./googleCalendar";
 
 export function registerRoutes(app: Express) {
   app.get("/health", (_req, res) => res.json({ ok: true }));
-  app.use("/api", requireUser);
+  app.use((req, res, next) => {
+    // Google OAuth callback מגיע בלי Authorization header — חייב להיות פתוח
+    if (req.originalUrl.startsWith("/api/google/calendar/callback"))
+      return next();
+    return requireUser(req, res, next);
+  });
   app.use("/api/user", userRouter);
   app.use("/api/leads", leadsRouter);
   app.use("/api/projects", projectsRouter);
@@ -19,4 +25,5 @@ export function registerRoutes(app: Express) {
   app.use("/api/tasks", tasksRouter);
   app.use("/api/events", eventsRouter);
   app.use("/api/places", placesRouter);
+  app.use("/api/google/calendar", googleCalendarRouter);
 }

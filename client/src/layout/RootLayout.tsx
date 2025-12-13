@@ -32,9 +32,12 @@ export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
 
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
+
   const handleMenuOpen = (e: React.MouseEvent<HTMLElement>) =>
     setAnchorEl(e.currentTarget);
+
   const handleMenuClose = () => setAnchorEl(null);
+
   const handleLogout = async () => {
     handleMenuClose();
     await signOut();
