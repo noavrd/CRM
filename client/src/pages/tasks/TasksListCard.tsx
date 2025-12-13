@@ -7,10 +7,12 @@ import DashboardCard from "@/components/dashboard/DashboardCard";
 import { useNavigate } from "react-router-dom";
 import { type Task, type TasksResponse } from "../types";
 import { DateTime } from "luxon";
+import { taskToServerPayload } from "./mappers";
 
 export default function TasksListCard() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [open, setOpen] = useState(false);
+
   const { success, error } = useSnackbar();
   const navigate = useNavigate();
 
@@ -52,17 +54,17 @@ export default function TasksListCard() {
 
   useEffect(() => {
     load();
+
+    const handler = () => load();
+    window.addEventListener("tasks:changed", handler);
+    return () => window.removeEventListener("tasks:changed", handler);
   }, []);
 
   const onSubmit = async (data: Task) => {
     try {
-      const payload = {
-        ...data,
-        dueDate: data.dueDate ? data.dueDate.toISODate() : undefined,
-      };
       await api("/api/tasks", {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: JSON.stringify(taskToServerPayload(data)),
       });
       success("משימה נשמרה");
       setOpen(false);

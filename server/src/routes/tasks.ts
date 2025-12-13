@@ -46,17 +46,25 @@ router.get("/", async (req, res) => {
   }
 });
 
-
 // create new task
 router.post("/", async (req, res) => {
   try {
     const userId = (req as any).userId as string | undefined;
     if (!userId) return res.status(401).json({ error: "unauthorized" });
 
-    const { projectId, assignee, dueDate, description, status } = req.body || {};
+    const { projectId, assignee, dueDate, description, status } =
+      req.body || {};
 
-    if (!projectId) return res.status(400).json({ error: "projectId is required" });
-    if (!description || typeof description !== "string" || !description.trim()) {
+    const normalizedProjectId =
+      typeof projectId === "string" && projectId.trim()
+        ? projectId.trim()
+        : null;
+
+    if (
+      !description ||
+      typeof description !== "string" ||
+      !description.trim()
+    ) {
       return res.status(400).json({ error: "description is required" });
     }
 
@@ -65,7 +73,7 @@ router.post("/", async (req, res) => {
 
     const ref = await adminDb.collection("tasks").add({
       userId,
-      projectId,
+      projectId: normalizedProjectId,
       assignee: assignee ?? null,
       description: description.trim(),
       status: status ?? "todo",
@@ -93,9 +101,15 @@ router.put("/:id", async (req, res) => {
     }
 
     const patch: any = {};
-    const { projectId, assignee, dueDate, description, status } = req.body || {};
+    const { projectId, assignee, dueDate, description, status } =
+      req.body || {};
 
-    if (projectId !== undefined) patch.projectId = projectId;
+    if (projectId !== undefined) {
+      patch.projectId =
+        typeof projectId === "string" && projectId.trim()
+          ? projectId.trim()
+          : null;
+    }
     if (assignee !== undefined) patch.assignee = assignee;
     if (description !== undefined) patch.description = String(description);
     if (status !== undefined) patch.status = status;
@@ -118,7 +132,8 @@ router.put("/:id/done", async (req, res) => {
 
     const ref = adminDb.collection("tasks").doc(req.params.id);
     const doc = await ref.get();
-    if (!doc.exists || doc.get("userId") !== userId) return res.status(404).json({ error: "not found" });
+    if (!doc.exists || doc.get("userId") !== userId)
+      return res.status(404).json({ error: "not found" });
 
     await ref.update({ status: "done" });
     res.json({ ok: true });

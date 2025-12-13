@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -13,15 +13,19 @@ import {
 import Grid from "@mui/material/Grid";
 import { DateTime } from "luxon";
 import { type Task, type ProjectOption } from "../types";
+import { useProjectsOptions } from "../../hooks/useProjectsOptions";
 
 type Props = {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: Task) => Promise<void>;
   loading?: boolean;
-  projects?: ProjectOption[];
   currentUserName?: string | null;
+  initial?: Task;
+  mode?: "create" | "edit";
 };
+
+const NO_PROJECT_ID = "__none__";
 
 const emptyForm: Task = {
   projectId: "",
@@ -38,35 +42,56 @@ export default function CreateTaskDialog({
   onClose,
   onSubmit,
   loading,
-  projects = [],
   currentUserName,
+  initial,
+  mode = "create",
 }: Props) {
-  const [form, setForm] = useState<Task>({
-    ...emptyForm,
-    assignee: currentUserName ?? "",
+  const [form, setForm] = useState<Task>(() =>
+    initial
+      ? { ...initial, assignee: initial.assignee ?? currentUserName ?? "" }
+      : { ...emptyForm, assignee: currentUserName ?? "" }
+  );
+  const { projects, loading: projectsLoading } = useProjectsOptions({
+    allowNone: true,
   });
 
+  useEffect(() => {
+    if (!open) return;
+
+    setForm(
+      initial
+        ? { ...initial, assignee: initial.assignee ?? currentUserName ?? "" }
+        : { ...emptyForm, assignee: currentUserName ?? "" }
+    );
+  }, [open, initial, currentUserName]);
+
   const canSave = useMemo(
-    () => Boolean(form.projectId && form.description.trim().length > 0),
-    [form.projectId, form.description]
+    () => Boolean(form.description.trim().length > 0),
+    [form.description]
   );
 
   const reset = () =>
     setForm({ ...emptyForm, assignee: currentUserName ?? "" });
+
   const handleClose = () => {
     reset();
     onClose();
   };
 
   const save = async () => {
-    const payload: Task = { ...form };
+    const payload: Task = {
+      ...form,
+      projectId: form.projectId === NO_PROJECT_ID ? "" : form.projectId,
+    };
     await onSubmit(payload);
-    reset();
+    if (mode !== "edit") reset();
   };
 
   return (
     <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md">
-      <DialogTitle sx={{ fontWeight: 700 }}>משימה חדשה</DialogTitle>
+      <DialogTitle sx={{ fontWeight: 700 }}>
+        {mode === "edit" ? "עריכת משימה" : "משימה חדשה"}
+      </DialogTitle>
 
       <DialogContent dividers sx={{ pt: 2 }}>
         <Box dir="rtl">
@@ -80,16 +105,44 @@ export default function CreateTaskDialog({
                 select
                 fullWidth
                 label="פרויקט"
-                value={form.projectId}
+                value={form.projectId || NO_PROJECT_ID}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, projectId: e.target.value }))
                 }
                 helperText={
                   !projects.length ? "אין פרויקטים לבחירה עדיין" : " "
                 }
+                sx={{ width: 250 }}
+                slotProps={{
+                  select: {
+                    displayEmpty: true,
+                    renderValue: (value) => {
+                      if (
+                        value === NO_PROJECT_ID ||
+                        value === "" ||
+                        value == null
+                      ) {
+                        return "ללא פרויקט";
+                      }
+                      const found = projects.find((p) => p?.id === value);
+                      return found?.name ?? "ללא פרויקט";
+                    },
+                  },
+                }}
               >
+                <MenuItem value={NO_PROJECT_ID}>ללא פרויקט</MenuItem>
+
                 {projects.map((p) => (
-                  <MenuItem key={p.id} value={p.id}>
+                  <MenuItem
+                    key={p.id}
+                    value={p.id}
+                    sx={{
+                      maxWidth: 420,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     {p.name}
                   </MenuItem>
                 ))}
