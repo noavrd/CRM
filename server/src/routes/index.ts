@@ -9,6 +9,7 @@ import tasksRouter from "./tasks";
 import eventsRouter from "./events";
 import placesRouter from "./places";
 import googleCalendarRouter from "./googleCalendar";
+import projectImportRouter from "./projectImport";
 
 export function registerRoutes(app: Express) {
   app.get("/health", (_req, res) => res.json({ ok: true }));
@@ -26,4 +27,5 @@ export function registerRoutes(app: Express) {
   app.use("/api/events", eventsRouter);
   app.use("/api/places", placesRouter);
   app.use("/api/google/calendar", googleCalendarRouter);
+  app.use("/api", projectImportRouter);
 }

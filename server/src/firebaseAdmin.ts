@@ -1,4 +1,9 @@
-import { initializeApp, applicationDefault, cert, getApps } from "firebase-admin/app";
+import {
+  initializeApp,
+  applicationDefault,
+  cert,
+  getApps,
+} from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import fs from "fs";
 
@@ -13,7 +18,7 @@ function loadServiceAccount() {
       }
       return cert(obj);
     } catch (e) {
-      console.error(" Failed to read GOOGLE_APPLICATION_CREDENTIALS file");
+      console.error("Failed to read GOOGLE_APPLICATION_CREDENTIALS file");
       throw e;
     }
   }

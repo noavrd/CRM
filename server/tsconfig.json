@@ -3,9 +3,10 @@
     "target": "ES2020",
     "module": "CommonJS",
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "strict": true,
     "skipLibCheck": true,
     "outDir": "dist"
   },
-   "include": ["src", "src/**/*.ts"]
+  "include": ["src", "src/**/*.ts"]
 }

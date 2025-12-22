@@ -24,10 +24,13 @@ import {
   PROJECT_STATUS_META,
   type ProjectStatus,
 } from "@/lib/projectStatus";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { defaultProjectForm, mergeProjectForm } from "../defaultValues";
 import { type ProjectForm } from "../types";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
+import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
+import CircularProgress from "@mui/material/CircularProgress";
+import { getAuth } from "firebase/auth";
 
 const steps = [
   {
@@ -73,6 +76,54 @@ export default function CreateProjectDialog({
 }) {
   const [form, setForm] = useState<ProjectForm>(mergeProjectForm(initial));
   const [step, setStep] = useState<StepKey>("customer");
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+
+  const handlePickFile = () => {
+    fileInputRef.current?.click();
+  };
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    try {
+      var file = e.target.files?.[0];
+      if (!file) return;
+
+      var auth = getAuth();
+      var user = auth.currentUser;
+      if (!user) throw new Error("User not logged in");
+
+      var token = await user.getIdToken();
+
+      var formData = new FormData();
+      formData.append("file", file);
+
+      var res = await fetch("/api/project-import", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + token,
+        },
+        body: formData,
+      });
+
+      if (!res.ok) {
+        var errText = await res.text();
+        throw new Error("Upload failed: " + res.status + " " + errText);
+      }
+
+      var imported = await res.json();
+
+      // כדי לא לדרוס דברים שקיימים אצלך ולהשאיר ברירת מחדל לשדות חסרים:
+      setForm(mergeProjectForm(imported));
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "שגיאה בהעלאה");
+    } finally {
+      // כדי לאפשר לבחור שוב אותו קובץ ולהפעיל onChange מחדש
+      e.target.value = "";
+    }
+  }
 
   const canSave = useMemo(() => form.name.trim().length > 0, [form.name]);
 
@@ -178,6 +229,11 @@ export default function CreateProjectDialog({
         </Grid>
 
         <Divider sx={{ mb: 2 }} />
+        {importError && (
+          <Typography color="error" sx={{ mb: 2 }}>
+            {importError}
+          </Typography>
+        )}
 
         {step === "customer" && (
           <Grid container spacing={2}>
@@ -690,6 +746,38 @@ export default function CreateProjectDialog({
       </DialogContent>
 
       <DialogActions sx={{ justifyContent: "space-between" }}>
+        <Button
+          variant="outlined"
+          onClick={handlePickFile}
+          disabled={importLoading}
+        >
+          {importLoading ? (
+            <>
+              <CircularProgress size={16} sx={{ mr: 1 }} />
+              מייבא...
+            </>
+          ) : (
+            "ייבוא ממסמך"
+          )}
+        </Button>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          hidden
+          onChange={handleUpload}
+          accept="
+    application/pdf,
+    application/vnd.openxmlformats-officedocument.wordprocessingml.document,
+    application/msword,
+    application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,
+    application/vnd.ms-excel,
+    text/csv,
+    text/plain,
+    application/json,
+    image/*"
+        />
+
         <Box>
           <Button onClick={close}>ביטול</Button>
         </Box>
