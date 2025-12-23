@@ -31,7 +31,8 @@ export default function ProjectsPage() {
   );
 
   // עבור עריכה
-  const [editing, setEditing] = useState<Project | null>(null);
+  const [editing, setEditing] = useState<ProjectForm | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
 
   const { success, error } = useSnackbar();
@@ -149,27 +150,33 @@ export default function ProjectsPage() {
     };
   };
 
-  // ---- פתיחת עריכה ----
-  const handleEdit = (row: Project) => {
-    setEditing(row);
-    setEditOpen(true);
+  const handleEdit = async (row: Project) => {
+    try {
+      const full = await api<any>(`/api/projects/${row.id}`);
+
+      setEditingId(full.id);
+      setEditing(projectToForm(full));
+      setEditOpen(true);
+    } catch {
+      error("שגיאה בטעינת פרטי הפרויקט לעריכה");
+    }
   };
 
   const handleClose = () => {
     setEditing(null);
+    setEditingId(null);
     setEditOpen(false);
   };
 
   const handleEditSubmit = async (data: ProjectForm) => {
-    if (!editing?.id) return;
+    if (!editingId) return;
     try {
-      await api(`/api/projects/${editing.id}`, {
+      await api(`/api/projects/${editingId}`, {
         method: "PUT",
         body: JSON.stringify(data),
       });
       success("פרויקט עודכן");
-      setEditOpen(false);
-      setEditing(null);
+      handleClose();
       await load();
       window.dispatchEvent(new Event("projects:changed"));
     } catch {
@@ -240,7 +247,7 @@ export default function ProjectsPage() {
         open={editOpen}
         onClose={handleClose}
         onSubmit={handleEditSubmit}
-        initial={editing ? projectToForm(editing) : undefined}
+        initial={editing ?? undefined}
         mode="edit"
       />
     </>

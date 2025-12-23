@@ -1,4 +1,4 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import {
   AppBar,
   Box,
@@ -11,6 +11,7 @@ import {
   MenuItem,
   Stack,
   ButtonBase,
+  Button,
 } from "@mui/material";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
@@ -26,6 +27,7 @@ export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
   const user = auth.currentUser;
 
   const didAutoConnect = useRef(false);
+  const navigate = useNavigate();
 
   const rawName =
     user?.displayName?.trim() ||
@@ -147,9 +149,14 @@ export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
           >
             <MenuItem onClick={handleLogout}>התנתקות</MenuItem>
           </Menu>
-          <Typography variant="h6" sx={{ fontWeight: 700, letterSpacing: 0.3 }}>
+          <Button
+            size="large"
+            variant="contained"
+            sx={{ fontWeight: 700, letterSpacing: 0.3 }}
+            onClick={() => navigate("/")}
+          >
             שמאות מקרקעין למקצוענים
-          </Typography>
+          </Button>
         </Toolbar>
       </AppBar>
 

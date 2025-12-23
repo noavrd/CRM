@@ -2,7 +2,10 @@ import { Router } from "express";
 import { adminDb } from "../firebaseAdmin";
 import { Timestamp } from "firebase-admin/firestore";
 import { google } from "googleapis";
-import { createGoogleCalendarEvent } from "../lib/googleCalendar";
+import {
+  upsertGoogleCalendarEvent,
+  deleteGoogleCalendarEvent,
+} from "../lib/googleCalendar";
 
 const router = Router();
 
@@ -73,6 +76,39 @@ function toVisitTimestamps(
 
   const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
   return { start, end, durationMinutes };
+}
+
+function finiteOrNull(x: any): number | null {
+  const n = typeof x === "number" ? x : Number(x);
+  return Number.isFinite(n) ? n : null;
+}
+
+// מסיר undefined עמוק (רק undefined! לא מוחק null/""/0)
+function stripUndefinedDeep<T>(obj: T): T {
+  if (Array.isArray(obj)) {
+    return obj.map(stripUndefinedDeep) as any;
+  }
+  if (obj && typeof obj === "object") {
+    const out: any = {};
+    for (const [k, v] of Object.entries(obj as any)) {
+      if (v === undefined) continue;
+      out[k] = stripUndefinedDeep(v);
+    }
+    return out;
+  }
+  return obj;
+}
+
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function toLocalDateInput(d: Date) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+function toLocalTimeInput(d: Date) {
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
 // סטטוסים מותרים (Single Source of Truth – תואם למה שבקליינט)
@@ -381,7 +417,7 @@ router.post("/", async (req, res) => {
         const endsAt: Date | null = v.endsAt?.toDate?.() ?? null;
 
         if (startsAt && endsAt) {
-          calendarResult = await createGoogleCalendarEvent({
+          calendarResult = await upsertGoogleCalendarEvent({
             userId,
             title: `ביקור בנכס – ${name.trim()}`,
             description: v?.notes ? `הערות: ${v.notes}` : "",
@@ -421,15 +457,61 @@ router.post("/", async (req, res) => {
   }
 });
 
-/* ---------- PUT /api/projects/:id (עדכון חלקי) ---------- */
+// GET /api/projects/:id
+router.get("/:id", async (req, res) => {
+  try {
+    const userId = (req as any).userId as string;
+    const projectId = req.params.id;
+
+    const projectRef = adminDb.collection("projects").doc(projectId);
+    const projectSnap = await projectRef.get();
+
+    if (!projectSnap.exists)
+      return res.status(404).json({ error: "not found" });
+    if (projectSnap.get("userId") !== userId)
+      return res.status(403).json({ error: "forbidden" });
+
+    const project: any = { id: projectSnap.id, ...projectSnap.data() };
+
+    // אם יש visitId - נטען את הביקור ונמיר לפורמט של הטופס
+    const visitId = project.visitId as string | null | undefined;
+
+    let visit: any = null;
+    if (visitId) {
+      const visitSnap = await adminDb.collection("visits").doc(visitId).get();
+      if (visitSnap.exists) {
+        const v: any = visitSnap.data();
+
+        const startsAt: Date | null = v.startsAt?.toDate?.() ?? null;
+
+        const visitDate = startsAt ? toLocalDateInput(startsAt) : "";
+        const visitTime = startsAt ? toLocalTimeInput(startsAt) : "";
+
+        visit = {
+          contactRole: v?.contact?.role ?? "",
+          contactName: v?.contact?.name ?? "",
+          contactPhone: v?.contact?.phone ?? "",
+          visitDate,
+          visitTime,
+          notes: v?.notes ?? "",
+        };
+      }
+    }
+
+    return res.json({ ...project, visit });
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+/* ---------- PUT /api/projects/:id (עדכון חלקי + ביקור + יומן) ---------- */
 router.put("/:id", async (req, res) => {
   try {
     const userId = (req as any).userId as string;
-    const ref = adminDb.collection("projects").doc(req.params.id);
-    const doc = await ref.get();
-    if (!doc.exists || doc.get("userId") !== userId) {
-      return res.status(404).json({ error: "not found" });
-    }
+    const projectId = req.params.id;
+
+    const projectRef = adminDb.collection("projects").doc(projectId);
+    const visitsCol = adminDb.collection("visits");
 
     const {
       name,
@@ -442,34 +524,256 @@ router.put("/:id", async (req, res) => {
       notes,
       archived,
     } = req.body || {};
-    const patch: any = {};
 
-    if (name !== undefined) patch.name = String(name);
+    // ---- patch לפרויקט ----
+    const projectPatch: any = {};
+
+    if (name !== undefined) projectPatch.name = String(name);
+
     if (status !== undefined) {
       if (!isValidStatus(status)) {
         return res.status(400).json({
           error: `invalid status. allowed: ${STATUS_VALUES.join(", ")}`,
         });
       }
-      patch.status = status;
+      projectPatch.status = status;
     }
-    if (customer !== undefined) patch.customer = customer;
-    if (address !== undefined) patch.address = address;
-    if (asset !== undefined) patch.asset = asset;
+
+    if (customer !== undefined)
+      projectPatch.customer = stripUndefinedDeep(customer);
+
+    if (address !== undefined) {
+      const cleanAddr = stripUndefinedDeep(address) as any;
+      cleanAddr.lat = finiteOrNull(cleanAddr.lat);
+      cleanAddr.lng = finiteOrNull(cleanAddr.lng);
+      projectPatch.address = cleanAddr;
+    }
+
+    if (asset !== undefined) projectPatch.asset = stripUndefinedDeep(asset);
 
     if (payments !== undefined) {
-      patch.payments = normalizePayments(payments);
-      patch.paymentsTotal = sumPayments(patch.payments);
+      projectPatch.payments = normalizePayments(payments);
+      projectPatch.paymentsTotal = sumPayments(projectPatch.payments);
     }
-    if (notes !== undefined) patch.notes = String(notes ?? "");
-    if (archived !== undefined) patch.archived = Boolean(archived);
 
-    patch.updatedAt = Timestamp.now();
+    if (notes !== undefined) projectPatch.notes = String(notes ?? "");
+    if (archived !== undefined) projectPatch.archived = Boolean(archived);
 
-    await ref.update(patch);
-    res.json({ ok: true });
+    projectPatch.updatedAt = Timestamp.now();
+
+    const parsed = toVisitTimestamps(visit?.visitDate, visit?.visitTime, 60);
+
+    // ---- state יציב (מונע never + נוח ליומן אחרי טרנזקציה) ----
+    type VisitForCalendar = {
+      title: string;
+      description: string;
+      location: string;
+      startsAt: Date;
+      endsAt: Date;
+    };
+
+    const state: {
+      finalVisitId: string | null;
+      existingEventId?: string;
+      removedEventId: string | null;
+      visitForCalendar: VisitForCalendar | null;
+      canceledVisitId: string | null; // כדי לנקות calendar במסמך אם ביטלנו
+    } = {
+      finalVisitId: null,
+      existingEventId: undefined,
+      removedEventId: null,
+      visitForCalendar: null,
+      canceledVisitId: null,
+    };
+
+    await adminDb.runTransaction(async (tx) => {
+      // ✅ READS FIRST
+      const projSnap = await tx.get(projectRef);
+      if (!projSnap.exists || projSnap.get("userId") !== userId) {
+        const err: any = new Error("not found");
+        err.status = 404;
+        throw err;
+      }
+
+      const projectName = String(
+        projectPatch.name ?? projSnap.get("name") ?? ""
+      ).trim();
+
+      const existingVisitId = (projSnap.get("visitId") as string) || null;
+      const existingVisitRef = existingVisitId
+        ? visitsCol.doc(existingVisitId)
+        : null;
+      const existingVisitSnap = existingVisitRef
+        ? await tx.get(existingVisitRef)
+        : null;
+
+      if (existingVisitSnap?.exists) {
+        const cal = existingVisitSnap.get("calendar") as any;
+        state.existingEventId =
+          typeof cal?.eventId === "string" && cal.eventId.trim()
+            ? cal.eventId
+            : undefined;
+      } else {
+        state.existingEventId = undefined;
+      }
+
+      // נחשב address לשימוש בביקור (אם נשלח patch -> הוא קודם)
+      const mergedAddress =
+        address !== undefined
+          ? projectPatch.address
+          : (projSnap.get("address") as any);
+
+      const assessorName =
+        asset !== undefined
+          ? asset?.assessor
+          : (projSnap.get("asset") as any)?.assessor ?? "";
+
+      // ✅ WRITES AFTER ALL READS
+
+      // תמיד מעדכנות פרויקט
+      tx.update(projectRef, projectPatch);
+
+      // --- ביטול ביקור ---
+      if (!parsed) {
+        if (existingVisitRef && existingVisitSnap?.exists) {
+          state.removedEventId = state.existingEventId ?? null;
+          state.canceledVisitId = existingVisitRef.id;
+
+          tx.update(existingVisitRef, {
+            status: "canceled",
+            // כדי שלא נשאר עם eventId ישן בביקור שבוטל:
+            calendar: null,
+            updatedAt: Timestamp.now(),
+          });
+
+          tx.update(projectRef, {
+            visitId: null,
+            updatedAt: Timestamp.now(),
+          });
+        }
+
+        state.finalVisitId = null;
+        state.visitForCalendar = null;
+        return;
+      }
+
+      // --- יצירה / עדכון ביקור ---
+      const visitRefToUse = existingVisitRef ?? visitsCol.doc();
+
+      const { addressText, googleMapsUrl, wazeUrl } = buildNavLinks({
+        address: mergedAddress,
+      });
+
+      const visitPayload: any = {
+        userId,
+        projectId: projectRef.id,
+        startsAt: Timestamp.fromDate(parsed.start),
+        endsAt: Timestamp.fromDate(parsed.end),
+        durationMinutes: parsed.durationMinutes,
+
+        contact: {
+          role: visit?.contactRole ?? "",
+          name: visit?.contactName ?? "",
+          phone: visit?.contactPhone ?? "",
+        },
+
+        notes: visit?.notes ?? "",
+        assessorName,
+
+        addressText,
+        lat: mergedAddress?.lat ?? null,
+        lng: mergedAddress?.lng ?? null,
+        nav: { googleMapsUrl, wazeUrl },
+
+        status: "scheduled",
+        updatedAt: Timestamp.now(),
+      };
+
+      if (existingVisitSnap?.exists) {
+        tx.update(visitRefToUse, visitPayload);
+      } else {
+        tx.create(visitRefToUse, {
+          ...visitPayload,
+          calendar: null,
+          createdAt: Timestamp.now(),
+        });
+
+        tx.update(projectRef, {
+          visitId: visitRefToUse.id,
+          updatedAt: Timestamp.now(),
+        });
+
+        state.existingEventId = undefined; // ביקור חדש => יצירה חדשה ביומן
+      }
+
+      state.finalVisitId = visitRefToUse.id;
+
+      state.visitForCalendar = {
+        title: `ביקור בנכס – ${projectName}`,
+        description: visitPayload.notes ? `הערות: ${visitPayload.notes}` : "",
+        location: visitPayload.addressText ?? "",
+        startsAt: parsed.start,
+        endsAt: parsed.end,
+      };
+    });
+
+    // ---------- יומן (לא מפיל שמירה) ----------
+    let calendarResult: any = null;
+
+    try {
+      if (state.removedEventId) {
+        calendarResult = await deleteGoogleCalendarEvent({
+          userId,
+          eventId: state.removedEventId,
+        });
+      } else if (state.finalVisitId && state.visitForCalendar) {
+        const vfc = state.visitForCalendar;
+
+        calendarResult = await upsertGoogleCalendarEvent({
+          userId,
+          existingEventId: state.existingEventId, // string | undefined
+          title: vfc.title,
+          description: vfc.description,
+          location: vfc.location,
+          startsAt: vfc.startsAt,
+          endsAt: vfc.endsAt,
+        });
+
+        if (calendarResult?.ok) {
+          await adminDb
+            .collection("visits")
+            .doc(state.finalVisitId)
+            .set(
+              {
+                calendar: {
+                  calendarId: "primary",
+                  eventId: calendarResult.eventId,
+                  htmlLink: calendarResult.htmlLink ?? null,
+                },
+                updatedAt: Timestamp.now(),
+              },
+              { merge: true }
+            );
+        }
+      }
+    } catch (e: any) {
+      console.error("[projects.put] calendar failed:", e?.message);
+      calendarResult = {
+        ok: false,
+        reason: "calendar_failed",
+        detail: e?.message ?? "",
+      };
+    }
+
+    return res.json({
+      ok: true,
+      visitId: state.finalVisitId,
+      calendar: calendarResult,
+    });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error("[projects.put] error:", e);
+    const status = e?.status ?? 500;
+    return res.status(status).json({ error: e?.message ?? "unknown error" });
   }
 });
 
