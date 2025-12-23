@@ -234,25 +234,69 @@ export type UiTask = {
 };
 
 /* ===================== Visits ===================== */
-/** מה שהטופס שולח */
-export type VisitForm = {
-  title: string;
-  date: string; // YYYY-MM-DD (ללא זמן, כדי לא לזוז אזורית)
+
+export type VisitStatus = "scheduled" | "done" | "canceled" | "no_show";
+
+export type VisitContactRole = "client" | "broker" | "lawyer" | "other";
+
+export type VisitContact = {
+  role?: VisitContactRole | string; // נשאר גמיש
+  name?: string;
+  phone?: string;
 };
 
-/** רשימה פשוטה ל־Card (ביקורים קרובים) */
-export type Visit = {
-  id: ID;
-  title: string;
-  date: string; // YYYY-MM-DD או תצוגה קצרה שאת מחזירה מהשרת
+export type CreateProjectVisitForm = {
+  // זמן
+  date: string; // YYYY-MM-DD
+  time: string; // HH:mm
+  durationMinutes?: number; // default 60
+
+  // מי מגיע
+  assessorName?: string;
+
+  // איש קשר בשטח
+  contact?: VisitContact;
+
+  // הערות/הוראות
+  notes?: string;
+  instructions?: string; // למשל "להיכנס מהשער האחורי"
+  parkingInfo?: string; // למשל "יש חניה כחול-לבן ליד..."
+
+  // סטטוס
+  status?: VisitStatus; // default scheduled
 };
 
-/** רשימת ביקורים מפורטת לעמוד VisitsPage */
+/** מה השרת מחזיר לביקורים קרובים */
 export type UpcomingVisit = {
   id: ID;
+  projectId: ID;
   projectName?: string;
-  contactName?: string;
-  contactPhone?: string;
-  visitDate?: string; // ISO (YYYY-MM-DD)
-  visitTime?: string; // "HH:mm"
+
+  startsAt: string; // ISO
+  endsAt: string; // ISO
+
+  durationMinutes: number;
+
+  assessorName?: string | null;
+  status: VisitStatus;
+
+  contact?: VisitContact;
+  notes?: string;
+  instructions?: string;
+  parkingInfo?: string;
+
+  // ניווט
+  addressText?: string | null;
+  nav?: {
+    googleMapsUrl?: string | null;
+    wazeUrl?: string | null;
+  };
+
+  // גוגל קלנדר
+  calendar?: {
+    provider: "google";
+    calendarId: string; // "primary"
+    eventId: string;
+    htmlLink?: string | null;
+  } | null;
 };

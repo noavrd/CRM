@@ -5,6 +5,7 @@ import TasksListCard from "../tasks/TasksListCard";
 import CalendarCard from "../events/CalendarCard";
 import NextVisits from "../visits/NextVisitsCard";
 import ProjectsMapCard from "../projects/ProjectsMapCard";
+import { api } from "@/api/http";
 
 const H_FIRST = { xs: 350, sm: 260, md: 260, lg: 280 };
 const H_SECOND = { xs: 350, sm: 290, md: 320, lg: 340 };
@@ -32,6 +33,11 @@ export default function Home() {
       py: { xs: 0.5, md: 1 },
     },
   });
+
+  const dbg = api("/api/google/calendar/debug").then(console.log);
+  console.log("gcal debug:", dbg);
+  api("/api/google/calendar/whoami").then(console.log);
+  api("/api/google/calendar/debug").then(console.log);
 
   return (
     <Box>

@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { adminDb } from "../firebaseAdmin";
 import { Timestamp } from "firebase-admin/firestore";
+import { google } from "googleapis";
+import { createGoogleCalendarEvent } from "../lib/googleCalendar";
 
 const router = Router();
 
@@ -16,8 +18,61 @@ function normalizePayments(
       }))
     : [];
 }
+
 function sumPayments(items: { amount: number }[]) {
   return items.reduce((s, it) => s + (Number(it?.amount) || 0), 0);
+}
+
+function buildAddressText(project: any): string {
+  const a = project?.address || {};
+  return [[a.street, a.number].filter(Boolean).join(" "), a.city]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function buildNavLinks(project: any) {
+  const a = project?.address || {};
+  const lat = a.lat;
+  const lng = a.lng;
+  const addressText = buildAddressText(project);
+
+  // Google Maps
+  const googleMapsUrl =
+    lat != null && lng != null
+      ? `https://www.google.com/maps?q=${encodeURIComponent(`${lat},${lng}`)}`
+      : addressText
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+          addressText
+        )}`
+      : null;
+
+  // Waze
+  const wazeUrl =
+    lat != null && lng != null
+      ? `https://waze.com/ul?ll=${encodeURIComponent(
+          `${lat},${lng}`
+        )}&navigate=yes`
+      : addressText
+      ? `https://waze.com/ul?q=${encodeURIComponent(addressText)}&navigate=yes`
+      : null;
+
+  return { addressText: addressText || null, googleMapsUrl, wazeUrl };
+}
+
+function toVisitTimestamps(
+  visitDate?: string,
+  visitTime?: string,
+  durationMinutes = 60
+) {
+  if (!visitDate) return null;
+
+  const time =
+    visitTime && String(visitTime).trim() ? String(visitTime).trim() : "09:00";
+  const start = new Date(`${visitDate}T${time}:00`);
+  if (Number.isNaN(start.getTime())) return null;
+
+  const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+  return { start, end, durationMinutes };
 }
 
 // סטטוסים מותרים (Single Source of Truth – תואם למה שבקליינט)
@@ -155,9 +210,10 @@ router.get("/", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const userId = (req as any).userId as string;
+
     const {
       name,
-      status, // ← הסטטוס היחיד במערכת
+      status,
       customer,
       address,
       asset,
@@ -165,6 +221,7 @@ router.post("/", async (req, res) => {
       payments,
       notes,
       archived,
+      clientRequestId: clientRequestIdRaw,
     } = req.body || {};
 
     if (!name || typeof name !== "string" || !name.trim()) {
@@ -179,74 +236,188 @@ router.post("/", async (req, res) => {
     const safePayments = normalizePayments(payments);
     const total = sumPayments(safePayments);
 
-    const ref = await adminDb.collection("projects").add({
-      userId,
-      name: name.trim(),
-      status, // אחד מה-6
-      archived: Boolean(archived), // ברירת מחדל false אם לא נשלח
+    const clientRequestId =
+      typeof clientRequestIdRaw === "string" && clientRequestIdRaw.trim()
+        ? clientRequestIdRaw.trim()
+        : null;
 
-      // פרטי לקוח
-      customer: {
-        name: customer?.name ?? "",
-        phone: customer?.phone ?? "",
-        email: customer?.email ?? "",
-        shippingEmail: customer?.shippingEmail ?? "",
-        city: customer?.city ?? "",
-        address: customer?.address ?? "",
-        company: customer?.company ?? "",
-        description: customer?.description ?? "",
-      },
+    const projectRef = clientRequestId
+      ? adminDb.collection("projects").doc(`${userId}_${clientRequestId}`)
+      : adminDb.collection("projects").doc();
 
-      // כתובת נכס
-      address: {
-        city: address?.city ?? "",
-        street: address?.street ?? "",
-        neighborhood: address?.neighborhood ?? "",
-        number: address?.number ?? "",
-        apt: address?.apt ?? "",
-        block: address?.block ?? "", // גוש
-        parcel: address?.parcel ?? "", // חלקה
-        subParcel: address?.subParcel ?? "", // תת חלקה
-        plot: address?.plot ?? "", // מגרש
-        lat: address?.lat ?? null,
-        lng: address?.lng ?? null,
-      },
+    // check if visit needed
+    const parsed = toVisitTimestamps(visit?.visitDate, visit?.visitTime, 60);
+    const visitsCol = adminDb.collection("visits");
+    const visitRef = parsed ? visitsCol.doc(`project_${projectRef.id}`) : null;
 
-      // פרטי נכס
-      asset: {
-        floor: asset?.floor ?? "",
-        rooms: asset?.rooms ?? "",
-        areaSqm: asset?.areaSqm ?? "",
-        propertyType: asset?.propertyType ?? "",
-        usage: asset?.usage ?? "",
-        purpose: asset?.purpose ?? "",
-        appraisalDueDate: asset?.appraisalDueDate ?? "", // yyyy-mm-dd
-        submissionDueDate: asset?.submissionDueDate ?? "", // yyyy-mm-dd
-        assessor: asset?.assessor ?? "",
-        referrer: asset?.referrer ?? "", // גורם מפנה
-      },
+    let createdVisitId: string | null = null;
+    let alreadyExisted = false;
 
-      // תיאום ביקור
-      visit: {
-        contactRole: visit?.contactRole ?? "",
-        contactName: visit?.contactName ?? "",
-        contactPhone: visit?.contactPhone ?? "",
-        visitDate: visit?.visitDate ?? "", // yyyy-mm-dd
-        visitTime: visit?.visitTime ?? "", // HH:mm
-        notes: visit?.notes ?? "",
-      },
+    await adminDb.runTransaction(async (tx) => {
+      const projectSnap = await tx.get(projectRef);
 
-      payments: safePayments,
-      paymentsTotal: total,
-      notes: notes ?? "",
+      let visitSnap: FirebaseFirestore.DocumentSnapshot | null = null;
+      if (visitRef) {
+        visitSnap = await tx.get(visitRef);
+      }
 
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
+      // אם הפרויקט כבר קיים (אותו clientRequestId) -> לא ליצור שוב
+      if (projectSnap.exists) {
+        alreadyExisted = true;
+        createdVisitId = (projectSnap.get("visitId") as string) || null;
+        return;
+      }
+
+      tx.create(projectRef, {
+        userId,
+        name: name.trim(),
+        status,
+        archived: Boolean(archived),
+
+        customer: {
+          name: customer?.name ?? "",
+          phone: customer?.phone ?? "",
+          email: customer?.email ?? "",
+          shippingEmail: customer?.shippingEmail ?? "",
+          city: customer?.city ?? "",
+          address: customer?.address ?? "",
+          company: customer?.company ?? "",
+          description: customer?.description ?? "",
+        },
+
+        address: {
+          city: address?.city ?? "",
+          street: address?.street ?? "",
+          neighborhood: address?.neighborhood ?? "",
+          number: address?.number ?? "",
+          apt: address?.apt ?? "",
+          block: address?.block ?? "",
+          parcel: address?.parcel ?? "",
+          subParcel: address?.subParcel ?? "",
+          plot: address?.plot ?? "",
+          lat: address?.lat ?? null,
+          lng: address?.lng ?? null,
+        },
+
+        asset: {
+          floor: asset?.floor ?? "",
+          rooms: asset?.rooms ?? "",
+          areaSqm: asset?.areaSqm ?? "",
+          propertyType: asset?.propertyType ?? "",
+          usage: asset?.usage ?? "",
+          purpose: asset?.purpose ?? "",
+          appraisalDueDate: asset?.appraisalDueDate ?? "",
+          submissionDueDate: asset?.submissionDueDate ?? "",
+          assessor: asset?.assessor ?? "",
+          referrer: asset?.referrer ?? "",
+        },
+
+        payments: safePayments,
+        paymentsTotal: total,
+        notes: notes ?? "",
+
+        visitId: null,
+
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+
+      if (parsed && visitRef) {
+        const { addressText, googleMapsUrl, wazeUrl } = buildNavLinks({
+          address,
+        });
+
+        // אם משום מה הביקור כבר קיים (ריטריי) - לא ליצור שוב
+        if (!visitSnap?.exists) {
+          tx.create(visitRef, {
+            userId,
+            projectId: projectRef.id,
+
+            startsAt: Timestamp.fromDate(parsed.start),
+            endsAt: Timestamp.fromDate(parsed.end),
+            durationMinutes: parsed.durationMinutes,
+
+            contact: {
+              role: visit?.contactRole ?? "",
+              name: visit?.contactName ?? "",
+              phone: visit?.contactPhone ?? "",
+            },
+
+            notes: visit?.notes ?? "",
+            assessorName: asset?.assessor ?? "",
+
+            addressText,
+            lat: address?.lat ?? null,
+            lng: address?.lng ?? null,
+
+            nav: { googleMapsUrl, wazeUrl },
+            status: "scheduled",
+            calendar: null,
+
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+          });
+        }
+
+        tx.update(projectRef, {
+          visitId: visitRef.id,
+          updatedAt: Timestamp.now(),
+        });
+
+        createdVisitId = visitRef.id;
+      }
     });
 
-    res.json({ id: ref.id });
+    let calendarResult: any = null;
+
+    if (createdVisitId) {
+      const visitDoc = await adminDb
+        .collection("visits")
+        .doc(createdVisitId)
+        .get();
+      if (visitDoc.exists) {
+        const v = visitDoc.data() as any;
+        const startsAt: Date | null = v.startsAt?.toDate?.() ?? null;
+        const endsAt: Date | null = v.endsAt?.toDate?.() ?? null;
+
+        if (startsAt && endsAt) {
+          calendarResult = await createGoogleCalendarEvent({
+            userId,
+            title: `ביקור בנכס – ${name.trim()}`,
+            description: v?.notes ? `הערות: ${v.notes}` : "",
+            location: v?.addressText ?? "",
+            startsAt,
+            endsAt,
+          });
+
+          if (calendarResult?.ok && calendarResult?.eventId) {
+            await adminDb
+              .collection("visits")
+              .doc(createdVisitId)
+              .set(
+                {
+                  calendar: {
+                    calendarId: calendarResult.calendarId,
+                    eventId: calendarResult.eventId,
+                    htmlLink: calendarResult.htmlLink,
+                  },
+                  updatedAt: Timestamp.now(),
+                },
+                { merge: true }
+              );
+          }
+        }
+      }
+    }
+
+    return res.json({
+      id: projectRef.id,
+      visitId: createdVisitId,
+      alreadyExisted,
+      calendar: calendarResult,
+    });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    return res.status(500).json({ error: e.message });
   }
 });
 
@@ -285,7 +456,6 @@ router.put("/:id", async (req, res) => {
     if (customer !== undefined) patch.customer = customer;
     if (address !== undefined) patch.address = address;
     if (asset !== undefined) patch.asset = asset;
-    if (visit !== undefined) patch.visit = visit;
 
     if (payments !== undefined) {
       patch.payments = normalizePayments(payments);
@@ -316,6 +486,113 @@ router.post("/:id/archive", async (req, res) => {
     res.json({ ok: true });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+router.post("/:id/visits", async (req, res) => {
+  try {
+    const userId = (req as any).userId as string;
+    const projectId = req.params.id;
+    const body = req.body || {};
+
+    // תומך גם ב-startsAt וגם ב-date+time
+    let startsAtIso = String(body.startsAt ?? "");
+    if (!startsAtIso) {
+      const d = String(body.date ?? "");
+      const t = String(body.time ?? "");
+      if (d) {
+        const time = t && t.trim() ? t.trim() : "09:00";
+        startsAtIso = new Date(`${d}T${time}:00`).toISOString();
+      }
+    }
+
+    if (!startsAtIso) {
+      return res
+        .status(400)
+        .json({ error: "startsAt (or date+time) is required" });
+    }
+
+    const projectRef = adminDb.collection("projects").doc(projectId);
+    const visitsCol = adminDb.collection("visits");
+
+    let out: any = null;
+
+    await adminDb.runTransaction(async (tx) => {
+      const projSnap = await tx.get(projectRef);
+      if (!projSnap.exists) {
+        throw new Error("project not found");
+      }
+      if (projSnap.get("userId") !== userId) {
+        const err: any = new Error("forbidden");
+        err.status = 403;
+        throw err;
+      }
+
+      const existingVisitId = projSnap.get("visitId") as string | undefined;
+
+      // ✅ אם כבר יש ביקור מקושר לפרויקט — לא יוצרים עוד אחד ולא מחזירים 409
+      if (existingVisitId) {
+        const visitRef = visitsCol.doc(existingVisitId);
+        const visitSnap = await tx.get(visitRef);
+        out = {
+          id: visitRef.id,
+          ...(visitSnap.exists ? visitSnap.data() : {}),
+        };
+        return;
+      }
+
+      // ✅ יוצרים ביקור חדש ומקשרים אותו לפרויקט באותה טרנזקציה
+      const visitRef = visitsCol.doc();
+
+      const durationMinutes = Number(body?.durationMinutes ?? 60);
+      const startDate = new Date(startsAtIso);
+      const endsAt = new Date(
+        startDate.getTime() + durationMinutes * 60 * 1000
+      );
+
+      const payload = {
+        userId,
+        projectId,
+        startsAt: Timestamp.fromDate(startDate),
+        endsAt: Timestamp.fromDate(endsAt),
+        durationMinutes,
+
+        assessorName: body?.assessorName ?? null,
+        status: body?.status ?? "scheduled",
+
+        contact: body?.contact ?? {},
+        notes: body?.notes ?? "",
+        instructions: body?.instructions ?? "",
+        parkingInfo: body?.parkingInfo ?? "",
+
+        // בהמשך נמלא את זה מהפרויקט (addressText/nav וכו’) אם תרצי
+        addressText: body?.addressText ?? null,
+        nav: body?.nav ?? {},
+
+        calendar: body?.calendar ?? null,
+
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+
+      tx.set(visitRef, payload);
+      tx.update(projectRef, {
+        visitId: visitRef.id,
+        updatedAt: Timestamp.now(),
+      });
+
+      out = { id: visitRef.id, ...payload };
+    });
+
+    // ממירים timestamps ל-ISO כדי שהפרונט לא יתבאס
+    if (out?.startsAt?.toDate)
+      out.startsAt = out.startsAt.toDate().toISOString();
+    if (out?.endsAt?.toDate) out.endsAt = out.endsAt.toDate().toISOString();
+
+    return res.status(200).json(out);
+  } catch (e: any) {
+    const status = e?.status ?? 500;
+    return res.status(status).json({ error: e?.message ?? "unknown error" });
   }
 });
 

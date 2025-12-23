@@ -64,12 +64,14 @@ export default function CreateProjectDialog({
   onSubmit,
   initial,
   mode = "create",
+  loading,
 }: {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: ProjectForm) => Promise<void>;
   initial?: ProjectForm;
   mode?: "create" | "edit";
+  loading?: boolean;
 }) {
   const [form, setForm] = useState<ProjectForm>(mergeProjectForm(initial));
   const [step, setStep] = useState<StepKey>("customer");
@@ -94,6 +96,7 @@ export default function CreateProjectDialog({
     );
 
   const save = async () => {
+    if (!canSave || loading) return;
     await onSubmit(form);
   };
 
@@ -104,7 +107,18 @@ export default function CreateProjectDialog({
   }, [open, initial]);
 
   return (
-    <Dialog open={open} onClose={close} fullWidth maxWidth="md">
+    <Dialog
+      open={open}
+      onClose={close}
+      fullWidth
+      maxWidth="md"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && step === steps[steps.length - 1].key) {
+          e.preventDefault();
+          if (!loading) save();
+        }
+      }}
+    >
       <DialogTitle>
         {mode === "edit" ? "עריכת פרויקט" : "הוספת פרויקט"}
       </DialogTitle>
@@ -702,7 +716,11 @@ export default function CreateProjectDialog({
               המשך
             </Button>
           ) : (
-            <Button variant="contained" disabled={!canSave} onClick={save}>
+            <Button
+              variant="contained"
+              disabled={!canSave || loading}
+              onClick={loading ? undefined : save}
+            >
               שמירה
             </Button>
           )}

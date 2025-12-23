@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Typography } from "@mui/material";
 import { PieChart } from "@mui/x-charts/PieChart";
 import { api } from "@/api/http";
@@ -25,9 +25,10 @@ export default function ProjectsDonutCard() {
     done: 0,
   });
   const [open, setOpen] = useState(false);
-
+  const [saving, setSaving] = useState(false);
   // סטטוס שנבחר בדונאט לדיאלוג
   const [dialogStatus, setDialogStatus] = useState<ProjectStatus | null>(null);
+  const submitIdRef = useRef<string | null>(null);
 
   const { success, error } = useSnackbar();
   const navigate = useNavigate();
@@ -54,17 +55,35 @@ export default function ProjectsDonutCard() {
   }, []);
 
   const onSubmit = async (data: ProjectForm) => {
+    if (saving) return;
+    setSaving(true);
+
     try {
-      await api("/api/projects", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      // אותו ID לכל ניסיון של אותה שמירה
+      if (!submitIdRef.current) {
+        submitIdRef.current =
+          (crypto as any)?.randomUUID?.() ?? String(Date.now());
+      }
+
+      const created = await api<{ id: string; visitId?: string | null }>(
+        "/api/projects",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            ...data,
+            clientRequestId: submitIdRef.current,
+          }),
+        }
+      );
+
       success("פרויקט נשמר");
       setOpen(false);
       await load();
       window.dispatchEvent(new Event("projects:changed"));
-    } catch {
-      error("שגיאה בשמירת פרויקט");
+      window.dispatchEvent(new Event("visits:changed"));
+    } finally {
+      setSaving(false);
+      submitIdRef.current = null; // מאפסים אחרי הצלחה/כישלון כדי ששמירה הבאה תקבל ID חדש
     }
   };
 
@@ -200,6 +219,7 @@ export default function ProjectsDonutCard() {
         open={open}
         onClose={() => setOpen(false)}
         onSubmit={onSubmit}
+        loading={saving}
       />
     </>
   );

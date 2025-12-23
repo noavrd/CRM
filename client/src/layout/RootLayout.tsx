@@ -18,10 +18,14 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { signOut } from "@/lib/firebase";
 import { getAuth } from "firebase/auth";
 import * as React from "react";
+import { useRef, useEffect } from "react";
+import { api } from "@/api/http";
 
 export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
   const auth = getAuth();
   const user = auth.currentUser;
+
+  const didAutoConnect = useRef(false);
 
   const rawName =
     user?.displayName?.trim() ||
@@ -42,6 +46,32 @@ export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
     handleMenuClose();
     await signOut();
   };
+
+  useEffect(() => {
+    const run = async () => {
+      // חייב משתמש מחובר
+      if (!user) return;
+
+      // הגנה מריצה כפולה (React StrictMode / rerenders)
+      if (didAutoConnect.current) return;
+      didAutoConnect.current = true;
+
+      // 1) בדיקה אם כבר יש חיבור
+      const dbg = await api<{ exists: boolean }>("/api/google/calendar/debug");
+
+      // 2) אם אין — שולחים ל-connect פעם אחת
+      if (!dbg?.exists) {
+        const { url } = await api<{ url: string }>(
+          "/api/google/calendar/connect"
+        );
+        window.location.href = url;
+      }
+    };
+
+    run().catch((e) => {
+      console.error("auto gcal connect failed", e);
+    });
+  }, [user]);
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
