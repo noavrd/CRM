@@ -37,6 +37,7 @@ import { getAuth } from "firebase/auth";
 import * as React from "react";
 import { useRef, useEffect, useMemo } from "react";
 import { api } from "@/api/http";
+import GlobalSearch from "@/components/GlobalSearch";
 
 const DRAWER_WIDTH = 260;
 
@@ -207,6 +208,12 @@ export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
                 ))}
             </Menu>
           </Stack>
+
+          <Box
+            sx={{ flex: 1, display: "flex", justifyContent: "center", px: 2 }}
+          >
+            <GlobalSearch />
+          </Box>
 
           {/* ימין: אווטאר + טוגל תמה */}
           <Stack direction="row" alignItems="center" spacing={1.25}>
