@@ -74,9 +74,8 @@ export default function CalendarCard() {
       <CardContent sx={{ flex: 1, p: 0, minHeight: 0 }}>
         <Box
           sx={{
-            // ✅ חובה: אחרת height:100% לא “תופס” ואין גלילה אמיתית
             height: "100%",
-            minHeight: 520, // אפשר לשחק: 480/520/600 לפי הכרטיס
+            minHeight: 520,
             width: "100%",
 
             p: 2,
@@ -86,38 +85,53 @@ export default function CalendarCard() {
             position: "relative",
           }}
         >
-          {/* הקלנדר תמיד נשאר */}
           <Box
             sx={{
               height: "100%",
               width: "100%",
               direction: "rtl",
-              minHeight: 0, // ✅ חשוב כדי שהילדים יוכלו “להידחס” ולקבל scroll
+              minHeight: 0,
 
-              // ✅ FullCalendar layout
               "& .fc": { height: "100%", minHeight: 0 },
               "& .fc .fc-view-harness": { height: "100%", minHeight: 0 },
 
-              // ✅ זה האלמנט שגולל בפועל
               "& .fc .fc-scroller": {
                 overflow: "auto !important",
                 WebkitOverflowScrolling: "touch",
               },
 
-              // Toolbar
-              "& .fc .fc-toolbar": { mb: 1 },
-              "& .fc .fc-toolbar-title": {
-                fontSize: "1.15rem",
-                fontWeight: 800,
-              },
               "& .fc .fc-button": { padding: "6px 10px", fontSize: "0.85rem" },
 
               // Month cells
               "& .fc .fc-daygrid-day-frame": { minHeight: 72 },
               "& .fc .fc-col-header-cell-cushion": { fontWeight: 700 },
 
-              // ✅ אם יש לך “אין אפשר לגלול” בגלל שהכותרת נדבקת/תופסת:
               "& .fc .fc-view-harness-active": { minHeight: 0 },
+              "& .fc .fc-toolbar": {
+                mb: 1,
+                display: "flex",
+                gap: 1,
+                flexWrap: "nowrap",
+              },
+
+              "& .fc .fc-toolbar-chunk": {
+                minWidth: 0,
+              },
+
+              "& .fc .fc-toolbar-title": {
+                fontSize: "1.15rem",
+                fontWeight: 800,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                maxWidth: "100%",
+              },
+              "& .fc .fc-toolbar-chunk:nth-of-type(2)": {
+                flex: 1,
+                minWidth: 0,
+                display: "flex",
+                justifyContent: "center",
+              },
             }}
           >
             <FullCalendar
@@ -151,6 +165,14 @@ export default function CalendarCard() {
                   info.jsEvent.preventDefault();
                   window.open(info.event.url, "_blank", "noopener,noreferrer");
                 }
+              }}
+              views={{
+                dayGridMonth: {
+                  titleFormat: { year: "numeric", month: "long" },
+                },
+                dayGridWeek: {
+                  titleFormat: { year: "numeric", month: "long" },
+                },
               }}
             />
           </Box>
