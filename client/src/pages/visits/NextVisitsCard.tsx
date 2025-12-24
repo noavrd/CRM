@@ -76,11 +76,10 @@ export default function NextVisitsCard() {
                   borderBottom: "1px solid rgba(0,0,0,0.08)",
                   py: 0.6,
                   borderRadius: 1,
-                  cursor: "default",
                 }}
                 disableRipple
                 disableTouchRipple
-                onClick={undefined}
+                onClick={() => navigate(`/projects/${v.projectId}`)}
               >
                 <ListItemText
                   primary={
