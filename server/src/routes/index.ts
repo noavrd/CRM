@@ -26,4 +26,5 @@ export function registerRoutes(app: Express) {
   app.use("/api/events", eventsRouter);
   app.use("/api/places", placesRouter);
   app.use("/api/google/calendar", googleCalendarRouter);
+  app.use("/api/events", eventsRouter);
 }

@@ -1,118 +1,201 @@
-import { useEffect, useState, useMemo } from "react";
-import { Box, List, ListItem, ListItemText, Typography } from "@mui/material";
-import DashboardCard from "@/components/dashboard/DashboardCard";
+// src/features/events/CalendarCard.tsx
+
+import { useMemo, useRef, useState } from "react";
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  Box,
+  CircularProgress,
+  Typography,
+} from "@mui/material";
+import FullCalendar from "@fullcalendar/react";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import timeGridPlugin from "@fullcalendar/timegrid";
+import interactionPlugin from "@fullcalendar/interaction";
 import { api } from "@/api/http";
-import CreateEventDialog from "./CreateEventDialog";
-import { useSnackbar } from "@/hooks/useSnackbar";
-import type { ApiEvent, EventForm } from "../types";
+
+type ApiEvent = {
+  id: string;
+  title: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  htmlLink?: string | null;
+  location?: string | null;
+};
 
 export default function CalendarCard() {
-  const [events, setEvents] = useState<ApiEvent[]>([]);
-  const [open, setOpen] = useState(false);
+  const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const { success, error } = useSnackbar();
+  const [errorText, setErrorText] = useState<string | null>(null);
 
-  const load = async () => {
+  // מונע מירוצים/בקשות שמגיעות out-of-order
+  const reqSeq = useRef(0);
+
+  const plugins = useMemo(
+    () => [dayGridPlugin, timeGridPlugin, interactionPlugin],
+    []
+  );
+
+  const loadRange = async (start: Date, end: Date) => {
+    const seq = ++reqSeq.current;
+
     setLoading(true);
+    setErrorText(null);
+
     try {
-      const now = new Date();
-      const y = now.getFullYear();
-      const m = now.getMonth() + 1;
-      const res = await api<ApiEvent[]>(
-        `/api/events/month?year=${y}&month=${m}`
+      const items = await api<ApiEvent[]>(
+        `/api/events/range?start=${encodeURIComponent(
+          start.toISOString()
+        )}&end=${encodeURIComponent(end.toISOString())}`
       );
 
-      const items = Array.isArray(res) ? res : [];
-      items.sort((a, b) => {
-        const ta = a?.startsAt
-          ? Date.parse(a.startsAt)
-          : Number.POSITIVE_INFINITY;
-        const tb = b?.startsAt
-          ? Date.parse(b.startsAt)
-          : Number.POSITIVE_INFINITY;
-        return ta - tb;
-      });
+      // אם יצאה בקשה חדשה יותר אחרי זו — לא לעדכן סטייט
+      if (seq !== reqSeq.current) return;
 
-      setEvents(items.slice(0, 6));
-    } catch {
-      error("שגיאה בטעינת אירועים");
+      const mapped = (items ?? []).map((e) => ({
+        id: e.id,
+        title: e.title || "(ללא כותרת)",
+        start: e.startsAt ?? undefined,
+        end: e.endsAt ?? undefined,
+        url: e.htmlLink ?? undefined,
+        extendedProps: { location: e.location ?? null },
+      }));
+
+      setEvents(mapped);
+    } catch (e: any) {
+      console.error("[CalendarCard] loadRange failed:", e);
+      if (seq !== reqSeq.current) return;
       setEvents([]);
+      setErrorText(e?.response?.error || e?.message || "שגיאה בטעינת יומן");
     } finally {
-      setLoading(false);
+      if (seq === reqSeq.current) setLoading(false);
     }
   };
-
-  useEffect(() => {
-    load();
-  }, []);
-
-  const onSubmit = async (data: EventForm) => {
-    try {
-      await api("/api/events", { method: "POST", body: JSON.stringify(data) });
-      success("אירוע נשמר");
-      setOpen(false);
-      await load();
-    } catch {
-      error("שגיאה בשמירת אירוע");
-    }
-  };
-
-  const content = useMemo(() => {
-    if (!events.length) {
-      return (
-        <Typography color="text.secondary">
-          אין אירועים לחודש הנוכחי.
-        </Typography>
-      );
-    }
-    return (
-      <List dense sx={{ width: "100%" }}>
-        {events.map((e) => {
-          const when = e.startsAt
-            ? new Date(e.startsAt).toLocaleString("he-IL", {
-                dateStyle: "short",
-                timeStyle: "short",
-              })
-            : "";
-          return (
-            <ListItem key={e.id} disableGutters>
-              <ListItemText
-                primary={e.title || "(ללא כותרת)"}
-                secondary={when}
-              />
-            </ListItem>
-          );
-        })}
-      </List>
-    );
-  }, [events]);
 
   return (
-    <>
-      <DashboardCard
-        title="אירועים"
-        onAdd={() => setOpen(true)}
-        addLabel="הוספת אירוע"
-        loading={loading}
-        empty={!loading && events.length === 0}
-        emptyState={
-          <Box>
-            <Typography color="text.secondary">
-              אין אירועים לחודש הנוכחי.
-            </Typography>
-          </Box>
-        }
-        minHeight={260}
-        contentSx={{ justifyContent: "flex-start", alignItems: "stretch" }}
-      >
-        {content}
-      </DashboardCard>
+    <Card sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <CardContent sx={{ flex: 1, p: 0, minHeight: 0 }}>
+        <Box
+          sx={{
+            // ✅ חובה: אחרת height:100% לא “תופס” ואין גלילה אמיתית
+            height: "100%",
+            minHeight: 520, // אפשר לשחק: 480/520/600 לפי הכרטיס
+            width: "100%",
 
-      <CreateEventDialog
-        open={open}
-        onClose={() => setOpen(false)}
-        onSubmit={onSubmit}
-      />
-    </>
+            p: 2,
+            borderRadius: 3,
+            bgcolor: "background.paper",
+            overflow: "hidden",
+            position: "relative",
+          }}
+        >
+          {/* הקלנדר תמיד נשאר */}
+          <Box
+            sx={{
+              height: "100%",
+              width: "100%",
+              direction: "rtl",
+              minHeight: 0, // ✅ חשוב כדי שהילדים יוכלו “להידחס” ולקבל scroll
+
+              // ✅ FullCalendar layout
+              "& .fc": { height: "100%", minHeight: 0 },
+              "& .fc .fc-view-harness": { height: "100%", minHeight: 0 },
+
+              // ✅ זה האלמנט שגולל בפועל
+              "& .fc .fc-scroller": {
+                overflow: "auto !important",
+                WebkitOverflowScrolling: "touch",
+              },
+
+              // Toolbar
+              "& .fc .fc-toolbar": { mb: 1 },
+              "& .fc .fc-toolbar-title": {
+                fontSize: "1.15rem",
+                fontWeight: 800,
+              },
+              "& .fc .fc-button": { padding: "6px 10px", fontSize: "0.85rem" },
+
+              // Month cells
+              "& .fc .fc-daygrid-day-frame": { minHeight: 72 },
+              "& .fc .fc-col-header-cell-cushion": { fontWeight: 700 },
+
+              // ✅ אם יש לך “אין אפשר לגלול” בגלל שהכותרת נדבקת/תופסת:
+              "& .fc .fc-view-harness-active": { minHeight: 0 },
+            }}
+          >
+            <FullCalendar
+              plugins={plugins}
+              initialView="dayGridMonth"
+              headerToolbar={{
+                left: "prev,next today",
+                center: "title",
+                right: "dayGridMonth,timeGridWeek",
+              }}
+              locale="he"
+              timeZone="Asia/Jerusalem"
+              firstDay={0}
+              nowIndicator
+              expandRows
+              stickyHeaderDates
+              // ✅ זה הטריק: תני ל־FC להיצמד לגובה ההורה
+              height="100%"
+              contentHeight="100%"
+              dayMaxEvents={2}
+              events={events}
+              datesSet={(arg) => {
+                void loadRange(arg.start, arg.end);
+              }}
+              eventClick={(info) => {
+                if (info.event.url) {
+                  info.jsEvent.preventDefault();
+                  window.open(info.event.url, "_blank", "noopener,noreferrer");
+                }
+              }}
+            />
+          </Box>
+
+          {/* Overlay טעינה */}
+          {loading && (
+            <Box
+              sx={{
+                position: "absolute",
+                inset: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                bgcolor: "rgba(255,255,255,0.55)",
+                backdropFilter: "blur(1px)",
+                zIndex: 10,
+              }}
+            >
+              <CircularProgress />
+            </Box>
+          )}
+
+          {/* שגיאה קטנה למטה */}
+          {errorText && (
+            <Box
+              sx={{
+                position: "absolute",
+                left: 16,
+                right: 16,
+                bottom: 12,
+                zIndex: 11,
+                bgcolor: "background.paper",
+                borderRadius: 2,
+                px: 2,
+                py: 1,
+                boxShadow: 2,
+              }}
+            >
+              <Typography variant="body2" color="text.secondary">
+                {errorText}
+              </Typography>
+            </Box>
+          )}
+        </Box>
+      </CardContent>
+    </Card>
   );
 }

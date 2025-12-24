@@ -1,69 +1,60 @@
-import { TextField } from "@mui/material";
-import TableShell, { type Column } from "@/components/table/TableShell";
-import { useEffect, useMemo, useState } from "react";
+import FullCalendar from "@fullcalendar/react";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import timeGridPlugin from "@fullcalendar/timegrid";
+import interactionPlugin from "@fullcalendar/interaction";
 import { api } from "@/api/http";
-import type { ApiEvent } from "../types";
+import { useState } from "react";
+
+type ApiEvent = {
+  id: string;
+  title: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  htmlLink?: string | null;
+};
 
 export default function EventsPage() {
-  const [rows, setRows] = useState<ApiEvent[]>([]);
-  const [q, setQ] = useState("");
-
-  const load = async () => {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = now.getMonth() + 1;
-    const items = await api<ApiEvent[]>(
-      `/api/events/month?year=${y}&month=${m}`
-    );
-    items.sort(
-      (a, b) =>
-        (a.startsAt ? Date.parse(a.startsAt) : 0) -
-        (b.startsAt ? Date.parse(b.startsAt) : 0)
-    );
-    setRows(items);
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
-
-  const filtered = useMemo(
-    () =>
-      rows.filter((r) =>
-        (r.title || "").toLowerCase().includes(q.toLowerCase())
-      ),
-    [rows, q]
-  );
-
-  const cols: Column<ApiEvent>[] = [
-    { id: "title", header: "כותרת", render: (r) => r.title || "(ללא כותרת)" },
-    {
-      id: "when",
-      header: "מתי",
-      render: (r) =>
-        r.startsAt
-          ? new Date(r.startsAt).toLocaleString("he-IL", {
-              dateStyle: "short",
-              timeStyle: "short",
-            })
-          : "-",
-    },
-  ];
+  const [events, setEvents] = useState<any[]>([]);
 
   return (
-    <TableShell
-      title="אירועים"
-      filters={
-        <TextField
-          size="small"
-          placeholder="חיפוש..."
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-      }
-      columns={cols}
-      rows={filtered}
-      emptyText="אין אירועים בחודש הנבחר"
-    />
+    <div style={{ padding: 16 }}>
+      <FullCalendar
+        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+        initialView="dayGridMonth"
+        headerToolbar={{
+          left: "prev,next today",
+          center: "title",
+          right: "dayGridMonth,timeGridWeek",
+        }}
+        locale="he"
+        timeZone="Asia/Jerusalem"
+        events={events}
+        datesSet={async (arg) => {
+          // arg.start / arg.end הם Date של הטווח הנוכחי
+          const items = await api<ApiEvent[]>(
+            `/api/events/range?start=${encodeURIComponent(
+              arg.start.toISOString()
+            )}&end=${encodeURIComponent(arg.end.toISOString())}`
+          );
+
+          setEvents(
+            items.map((e) => ({
+              id: e.id,
+              title: e.title,
+              start: e.startsAt ?? undefined,
+              end: e.endsAt ?? undefined,
+              url: e.htmlLink ?? undefined, // לחיצה תפתח בגוגל קלנדר
+            }))
+          );
+        }}
+        eventClick={(info) => {
+          // אם יש url – תפתח בכרטיסיה חדשה
+          if (info.event.url) {
+            info.jsEvent.preventDefault();
+            window.open(info.event.url, "_blank", "noopener,noreferrer");
+          }
+        }}
+      />
+    </div>
   );
 }
