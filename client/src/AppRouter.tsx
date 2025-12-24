@@ -29,9 +29,9 @@ export default function AppRouter({ toggleMode }: { toggleMode: () => void }) {
         { path: "tasks", element: <TasksPage /> },
         { path: "visits", element: <VisitsPage /> },
         { path: "events", element: <EventsPage /> },
-        { path: "/projects/map", element: <ProjectsMapPage /> },
-        { path: "/projects/:id", element: <ProjectDetailsPage /> },
-        { path: "/tasks/:id", element: <TaskDetailsPage /> },
+        { path: "projects/map", element: <ProjectsMapPage /> },
+        { path: "projects/:id", element: <ProjectDetailsPage /> },
+        { path: "tasks/:id", element: <TaskDetailsPage /> },
       ],
     },
   ]);

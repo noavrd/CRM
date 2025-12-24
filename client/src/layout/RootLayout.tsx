@@ -1,26 +1,51 @@
-import { Outlet, useNavigate } from "react-router-dom";
+// src/layout/RootLayout.tsx
+
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   AppBar,
   Box,
   Container,
   Toolbar,
   Typography,
-  Tooltip,
   Avatar,
   Menu,
   MenuItem,
   Stack,
   ButtonBase,
   Button,
+  Drawer,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+  IconButton,
 } from "@mui/material";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import MenuIcon from "@mui/icons-material/Menu";
+import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
+import WorkOutlineIcon from "@mui/icons-material/WorkOutline";
+import TaskAltOutlinedIcon from "@mui/icons-material/TaskAltOutlined";
+import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
+import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
+import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
+import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
 import ThemeToggle from "@/components/ThemeToggle";
 import { signOut } from "@/lib/firebase";
 import { getAuth } from "firebase/auth";
 import * as React from "react";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useMemo } from "react";
 import { api } from "@/api/http";
+
+const DRAWER_WIDTH = 260;
+
+type NavItem = {
+  label: string;
+  path: string;
+  icon: React.ReactNode;
+  showInDropdown?: boolean;
+};
 
 export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
   const auth = getAuth();
@@ -28,6 +53,7 @@ export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
 
   const didAutoConnect = useRef(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const rawName =
     user?.displayName?.trim() ||
@@ -36,32 +62,92 @@ export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
   const firstName = rawName.trim().split(/\s+/).filter(Boolean)[0] || "משתמשת";
   const photoURL = user?.photoURL || "";
 
+  const navItems: NavItem[] = useMemo(
+    () => [
+      {
+        label: "דשבורד",
+        path: "/",
+        icon: <HomeOutlinedIcon />,
+        showInDropdown: true,
+      },
+      {
+        label: "לידים",
+        path: "/leads",
+        icon: <PeopleOutlineIcon />,
+        showInDropdown: true,
+      },
+      {
+        label: "פרויקטים",
+        path: "/projects",
+        icon: <WorkOutlineIcon />,
+        showInDropdown: true,
+      },
+      {
+        label: "מפת פרויקטים",
+        path: "/projects/map",
+        icon: <MapOutlinedIcon />,
+        showInDropdown: true,
+      },
+      {
+        label: "משימות",
+        path: "/tasks",
+        icon: <TaskAltOutlinedIcon />,
+        showInDropdown: true,
+      },
+      {
+        label: "ביקורים",
+        path: "/visits",
+        icon: <EventOutlinedIcon />,
+        showInDropdown: true,
+      },
+      {
+        label: "יומן",
+        path: "/events",
+        icon: <CalendarMonthOutlinedIcon />,
+        showInDropdown: true,
+      },
+    ],
+    []
+  );
+
+  // ----- תפריט משתמש (אווטאר) -----
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
-  const open = Boolean(anchorEl);
-
-  const handleMenuOpen = (e: React.MouseEvent<HTMLElement>) =>
+  const userMenuOpen = Boolean(anchorEl);
+  const handleUserMenuOpen = (e: React.MouseEvent<HTMLElement>) =>
     setAnchorEl(e.currentTarget);
-
-  const handleMenuClose = () => setAnchorEl(null);
+  const handleUserMenuClose = () => setAnchorEl(null);
 
   const handleLogout = async () => {
-    handleMenuClose();
+    handleUserMenuClose();
     await signOut();
+  };
+
+  // ----- dropdown בכותרת "שמאות מקרקעין..." -----
+  const [brandAnchor, setBrandAnchor] = React.useState<null | HTMLElement>(
+    null
+  );
+  const brandOpen = Boolean(brandAnchor);
+  const openBrandMenu = (e: React.MouseEvent<HTMLElement>) =>
+    setBrandAnchor(e.currentTarget);
+  const closeBrandMenu = () => setBrandAnchor(null);
+
+  // ----- Drawer overlay (לא מזיז מסך) -----
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const closeDrawer = () => setDrawerOpen(false);
+
+  const go = (path: string) => {
+    navigate(path);
+    closeBrandMenu();
+    closeDrawer();
   };
 
   useEffect(() => {
     const run = async () => {
-      // חייב משתמש מחובר
       if (!user) return;
-
-      // הגנה מריצה כפולה (React StrictMode / rerenders)
       if (didAutoConnect.current) return;
       didAutoConnect.current = true;
 
-      // 1) בדיקה אם כבר יש חיבור
       const dbg = await api<{ exists: boolean }>("/api/google/calendar/debug");
-
-      // 2) אם אין — שולחים ל-connect פעם אחת
       if (!dbg?.exists) {
         const { url } = await api<{ url: string }>(
           "/api/google/calendar/connect"
@@ -70,13 +156,16 @@ export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
       }
     };
 
-    run().catch((e) => {
-      console.error("auto gcal connect failed", e);
-    });
+    run().catch((e) => console.error("auto gcal connect failed", e));
   }, [user]);
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        bgcolor: "background.default",
+      }}
+    >
       <AppBar position="static" elevation={0}>
         <Toolbar
           sx={{
@@ -88,12 +177,46 @@ export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
             gap: 1.5,
           }}
         >
+          {/* שמאל: כפתור תפריט + כפתור brand עם חץ/דרופדאון */}
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Button
+              size="large"
+              variant="contained"
+              onClick={openBrandMenu}
+              endIcon={<ArrowDropDownIcon />}
+              sx={{ fontWeight: 800, letterSpacing: 0.2, borderRadius: 2 }}
+            >
+              שמאות מקרקעין למקצוענים
+            </Button>
+
+            <Menu
+              anchorEl={brandAnchor}
+              open={brandOpen}
+              onClose={closeBrandMenu}
+              anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+              transformOrigin={{ vertical: "top", horizontal: "right" }}
+              PaperProps={{ sx: { mt: 1, minWidth: 220 } }}
+            >
+              {navItems
+                .filter((x) => x.showInDropdown)
+                .map((it) => (
+                  <MenuItem key={it.path} onClick={() => go(it.path)}>
+                    <ListItemIcon sx={{ minWidth: 34 }}>{it.icon}</ListItemIcon>
+                    {it.label}
+                  </MenuItem>
+                ))}
+            </Menu>
+          </Stack>
+
+          {/* ימין: אווטאר + טוגל תמה */}
           <Stack direction="row" alignItems="center" spacing={1.25}>
+            <ThemeToggle onToggle={toggleMode} />
+
             <ButtonBase
-              onClick={handleMenuOpen}
+              onClick={handleUserMenuOpen}
               aria-haspopup="menu"
-              aria-controls={open ? "user-menu" : undefined}
-              aria-expanded={open ? "true" : undefined}
+              aria-controls={userMenuOpen ? "user-menu" : undefined}
+              aria-expanded={userMenuOpen ? "true" : undefined}
               sx={{
                 borderRadius: 2,
                 px: 1,
@@ -101,9 +224,7 @@ export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 1,
-                "&:hover": (t) => ({
-                  backgroundColor: t.palette.action.hover,
-                }),
+                "&:hover": (t) => ({ backgroundColor: t.palette.action.hover }),
                 "&:focus-visible": (t) => ({
                   outline: `2px solid ${t.palette.primary.main}`,
                   outlineOffset: 2,
@@ -122,44 +243,29 @@ export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
                 {!photoURL ? <PersonOutlineIcon /> : null}
               </Avatar>
 
-              <Typography
-                variant="subtitle1"
-                noWrap
-                sx={{
-                  maxWidth: { xs: 100, sm: 160, md: 220 },
-                  fontWeight: 600,
-                }}
-              >
+              <Typography variant="subtitle1" noWrap sx={{ fontWeight: 700 }}>
                 {firstName}
               </Typography>
 
               <ArrowDropDownIcon />
             </ButtonBase>
 
-            <ThemeToggle onToggle={toggleMode} />
+            <Menu
+              id="user-menu"
+              anchorEl={anchorEl}
+              open={userMenuOpen}
+              onClose={handleUserMenuClose}
+              anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+              transformOrigin={{ vertical: "top", horizontal: "right" }}
+              PaperProps={{ sx: { mt: 1, minWidth: 160 } }}
+            >
+              <MenuItem onClick={handleLogout}>התנתקות</MenuItem>
+            </Menu>
           </Stack>
-          <Menu
-            id="user-menu"
-            anchorEl={anchorEl}
-            open={open}
-            onClose={handleMenuClose}
-            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-            transformOrigin={{ vertical: "top", horizontal: "right" }}
-            PaperProps={{ sx: { mt: 1, minWidth: 160 } }}
-          >
-            <MenuItem onClick={handleLogout}>התנתקות</MenuItem>
-          </Menu>
-          <Button
-            size="large"
-            variant="contained"
-            sx={{ fontWeight: 700, letterSpacing: 0.3 }}
-            onClick={() => navigate("/")}
-          >
-            שמאות מקרקעין למקצוענים
-          </Button>
         </Toolbar>
       </AppBar>
 
+      {/* תוכן – תמיד מרכזי, לא זז */}
       <Container maxWidth="md" sx={{ py: 6 }}>
         <Outlet />
       </Container>
