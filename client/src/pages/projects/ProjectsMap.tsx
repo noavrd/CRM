@@ -4,6 +4,7 @@ import {
   GoogleMap,
   MarkerF,
   InfoWindowF,
+  DirectionsRenderer,
   useJsApiLoader,
 } from "@react-google-maps/api";
 import { api } from "@/api/http";
@@ -11,10 +12,9 @@ import {
   PROJECT_STATUS_META,
   type ProjectStatus,
   statusLabel,
-  PROJECT_STATUS_ORDER,
 } from "@/lib/projectStatus";
 
-type ProjectMapItem = {
+export type ProjectMapItem = {
   id: string;
   name: string;
   status: ProjectStatus;
@@ -34,7 +34,6 @@ type ProjectMapItem = {
 type RawProject = any;
 
 const DEFAULT_CENTER = { lat: 31.771959, lng: 35.217018 };
-
 const containerStyle = { width: "100%", height: "100%" };
 
 const PIN_PATH =
@@ -61,16 +60,26 @@ function formatAddress(p: ProjectMapItem) {
 
 type Props = {
   selectedStatuses: ProjectStatus[];
+  height?: number | string;
+  fitToFiltered?: boolean;
+
   onItemsLoaded?: (items: ProjectMapItem[]) => void;
-  height?: number | string; // מאפשר לשלוט בגדול בדף מול הכרטיס
-  fitToFiltered?: boolean; // ברירת מחדל true
+
+  routeMode?: boolean;
+  selectedRouteIds?: string[];
+  onToggleRouteId?: (id: string) => void;
+  directions?: google.maps.DirectionsResult | null;
 };
 
 export function ProjectsMap({
   selectedStatuses,
-  onItemsLoaded,
   height = "100%",
   fitToFiltered = true,
+  routeMode = false,
+  selectedRouteIds = [],
+  onToggleRouteId,
+  directions = null,
+  onItemsLoaded,
 }: Props) {
   const [items, setItems] = useState<ProjectMapItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,6 +91,7 @@ export function ProjectsMap({
 
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: apiKey || "",
+    // בשביל DirectionsRenderer לא צריך libraries מיוחדים
   });
 
   const filteredItems = useMemo(() => {
@@ -89,6 +99,11 @@ export function ProjectsMap({
     const allowed = new Set(selectedStatuses);
     return items.filter((p) => allowed.has(p.status));
   }, [items, selectedStatuses]);
+
+  const selectedSet = useMemo(
+    () => new Set(selectedRouteIds),
+    [selectedRouteIds]
+  );
 
   const loadProjects = async () => {
     try {
@@ -129,7 +144,6 @@ export function ProjectsMap({
     } catch (e) {
       console.error("Failed loading projects map:", e);
       setItems([]);
-      onItemsLoaded?.([]);
     } finally {
       setLoading(false);
     }
@@ -147,7 +161,7 @@ export function ProjectsMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // fit bounds כשהמפה עלתה + יש פריטים (מומלץ לעבוד על filtered כדי שהסינון באמת "ישלוט" על הזום)
+  // fit bounds לפי סינון
   useEffect(() => {
     if (!map) return;
 
@@ -160,12 +174,18 @@ export function ProjectsMap({
     );
     map.fitBounds(bounds);
 
-    if (list.length === 1) {
-      map.setZoom(14);
-    }
+    if (list.length === 1) map.setZoom(14);
   }, [map, items, filteredItems, fitToFiltered]);
 
   const zoom = items.length ? 11 : 7;
+
+  const handleMarkerClick = (id: string) => {
+    if (routeMode) {
+      onToggleRouteId?.(id);
+      return;
+    }
+    setInfoId((cur) => (cur === id ? null : id));
+  };
 
   return (
     <Box sx={{ width: "100%", height }}>
@@ -205,6 +225,7 @@ export function ProjectsMap({
         <Box
           sx={{
             height: "100%",
+            // continue: "100%",
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
@@ -227,8 +248,18 @@ export function ProjectsMap({
           }}
           onClick={() => setInfoId(null)}
         >
+          {directions && (
+            <DirectionsRenderer
+              directions={directions}
+              options={{
+                suppressMarkers: true,
+              }}
+            />
+          )}
+
           {filteredItems.map((p) => {
             const color = PROJECT_STATUS_META[p.status].color;
+            const isSelected = selectedSet.has(p.id);
 
             return (
               <MarkerF
@@ -239,32 +270,33 @@ export function ProjectsMap({
                   path: PIN_PATH,
                   fillColor: color,
                   fillOpacity: 1,
-                  strokeColor: "#ffffff",
-                  strokeWeight: 1.5,
-                  scale: 1.4,
+                  strokeColor: isSelected ? "#000000" : "#ffffff",
+                  strokeWeight: isSelected ? 2.5 : 1.5,
+                  scale: isSelected ? 1.7 : 1.4,
                   anchor: new window.google.maps.Point(12, 24),
                 }}
-                onClick={() => setInfoId((cur) => (cur === p.id ? null : p.id))}
+                onClick={() => handleMarkerClick(p.id)}
               />
             );
           })}
 
-          {filteredItems.map((p) =>
-            infoId === p.id ? (
-              <InfoWindowF
-                key={`info-${p.id}`}
-                position={{ lat: p.address.lat, lng: p.address.lng }}
-                onCloseClick={() => setInfoId(null)}
-              >
-                <div style={{ direction: "rtl" }}>
-                  <strong>{p.name}</strong>
-                  <div>סטטוס: {statusLabel(p.status)}</div>
-                  {p.customer?.name && <div>לקוח/ה: {p.customer.name}</div>}
-                  {formatAddress(p) && <div>{formatAddress(p)}</div>}
-                </div>
-              </InfoWindowF>
-            ) : null
-          )}
+          {!routeMode &&
+            filteredItems.map((p) =>
+              infoId === p.id ? (
+                <InfoWindowF
+                  key={`info-${p.id}`}
+                  position={{ lat: p.address.lat, lng: p.address.lng }}
+                  onCloseClick={() => setInfoId(null)}
+                >
+                  <div style={{ direction: "rtl" }}>
+                    <strong>{p.name}</strong>
+                    <div>סטטוס: {statusLabel(p.status)}</div>
+                    {p.customer?.name && <div>לקוח/ה: {p.customer.name}</div>}
+                    {formatAddress(p) && <div>{formatAddress(p)}</div>}
+                  </div>
+                </InfoWindowF>
+              ) : null
+            )}
         </GoogleMap>
       )}
     </Box>
