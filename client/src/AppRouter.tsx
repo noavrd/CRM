@@ -9,6 +9,8 @@ import TasksPage from "./pages/tasks/TasksPage";
 import VisitsPage from "./pages/visits/VisitsPage";
 import EventsPage from "./pages/events/EventsPage";
 import ProjectsMapPage from "./pages/projects/ProjectsMapPage";
+import ProjectDetailsPage from "./pages/projects/ProjectDetailsPage";
+import TaskDetailsPage from "./pages/tasks/TaskDetailsPage";
 
 export default function AppRouter({ toggleMode }: { toggleMode: () => void }) {
   const router = createBrowserRouter([
@@ -28,6 +30,8 @@ export default function AppRouter({ toggleMode }: { toggleMode: () => void }) {
         { path: "visits", element: <VisitsPage /> },
         { path: "events", element: <EventsPage /> },
         { path: "/projects/map", element: <ProjectsMapPage /> },
+        { path: "/projects/:id", element: <ProjectDetailsPage /> },
+        { path: "/tasks/:id", element: <TaskDetailsPage /> },
       ],
     },
   ]);

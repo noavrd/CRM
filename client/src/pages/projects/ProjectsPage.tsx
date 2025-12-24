@@ -22,6 +22,7 @@ import type { Project, ProjectForm } from "../types";
 import CreateProjectDialog from "./CreateProjectDialog";
 import { defaultProjectForm } from "../defaultValues";
 import { useSnackbar } from "@/hooks/useSnackbar";
+import { useNavigate } from "react-router-dom";
 
 export default function ProjectsPage() {
   const [rows, setRows] = useState<Project[]>([]);
@@ -29,13 +30,12 @@ export default function ProjectsPage() {
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | "all">(
     "all"
   );
-
-  // עבור עריכה
   const [editing, setEditing] = useState<ProjectForm | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
 
   const { success, error } = useSnackbar();
+  const navigate = useNavigate();
 
   // ---- טוען פרויקטים ----
   const load = async () => {
@@ -186,6 +186,11 @@ export default function ProjectsPage() {
 
   // ---- אקשנים לכל שורה ----
   const rowActions = (row: Project): RowAction<Project>[] => [
+    {
+      label: "צפייה בפרטים מלאים",
+      onClick: () => navigate(`/projects/${row.id}`),
+      color: "primary",
+    },
     {
       label: "עריכה",
       onClick: handleEdit,

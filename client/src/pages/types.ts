@@ -190,7 +190,7 @@ export type Project = {
   id: ID;
   name: string;
   pipelineStatus?: ProjectStatus;
-  customer?: { name?: string };
+  customer?: { name?: string; phone?: string; city?: string };
 };
 
 /** סטטיסטיקות לתרשים הדונאט */

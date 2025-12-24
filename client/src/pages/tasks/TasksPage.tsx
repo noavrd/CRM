@@ -17,6 +17,7 @@ import type {
 } from "../types";
 import CreateTaskDialog from "./CreateTaskDialog";
 import { serverTaskToTask, taskToServerPayload } from "./mappers";
+import { useNavigate } from "react-router-dom";
 
 export default function TasksPage() {
   const [rows, setRows] = useState<UiTask[]>([]);
@@ -27,6 +28,7 @@ export default function TasksPage() {
   const [q, setQ] = useState("");
 
   const { success, error } = useSnackbar();
+  const navigate = useNavigate();
 
   const load = async () => {
     try {
@@ -119,6 +121,11 @@ export default function TasksPage() {
 
   const rowActions = (row: UiTask) =>
     [
+      {
+        label: "צפייה בפרטים מלאים",
+        onClick: () => navigate(`/tasks/${row.id}`),
+        color: "primary",
+      },
       {
         label: "עריכה",
         onClick: () => {
