@@ -11,7 +11,6 @@ import {
 } from "@mui/material";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
-import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { api } from "@/api/http";
 
@@ -32,10 +31,7 @@ export default function CalendarCard() {
   // מונע מירוצים/בקשות שמגיעות out-of-order
   const reqSeq = useRef(0);
 
-  const plugins = useMemo(
-    () => [dayGridPlugin, timeGridPlugin, interactionPlugin],
-    []
-  );
+  const plugins = useMemo(() => [dayGridPlugin, interactionPlugin], []);
 
   const loadRange = async (start: Date, end: Date) => {
     const seq = ++reqSeq.current;
@@ -130,7 +126,12 @@ export default function CalendarCard() {
               headerToolbar={{
                 left: "prev,next today",
                 center: "title",
-                right: "dayGridMonth,timeGridWeek",
+                right: "dayGridMonth,dayGridWeek",
+              }}
+              buttonText={{
+                dayGridMonth: "חודש",
+                dayGridWeek: "שבוע",
+                today: "היום",
               }}
               locale="he"
               timeZone="Asia/Jerusalem"
@@ -138,7 +139,6 @@ export default function CalendarCard() {
               nowIndicator
               expandRows
               stickyHeaderDates
-              // ✅ זה הטריק: תני ל־FC להיצמד לגובה ההורה
               height="100%"
               contentHeight="100%"
               dayMaxEvents={2}
