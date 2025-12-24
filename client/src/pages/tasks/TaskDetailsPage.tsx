@@ -11,16 +11,21 @@ function statusChip(status?: string) {
     string,
     { label: string; color: "default" | "warning" | "success" }
   > = {
+    todo: { label: "פתוחה", color: "warning" },
     open: { label: "פתוחה", color: "warning" },
     "in-progress": { label: "בתהליך", color: "default" },
     done: { label: "בוצעה", color: "success" },
   };
+
   const meta = status ? map[status] : null;
+
   return (
     <Chip
       size="small"
-      label={meta?.label ?? "-"}
+      label={meta?.label ?? String(status ?? "-")}
       color={meta?.color ?? "default"}
+      variant={status === "in-progress" ? "outlined" : "filled"}
+      sx={{ ml: 1 }} // קצת מרווח מהכותרת
     />
   );
 }
@@ -54,6 +59,7 @@ export default function TaskDetailsPage() {
   return (
     <DetailsShell
       title={task?.title ? `משימה: ${task.title}` : "פרטי משימה"}
+      titleAdornment={task ? statusChip((task as any).status) : null} // ✅ כאן הסטטוס ליד הכותרת
       loading={loading}
       errorText={err}
       onBack={() => navigate(-1)}
@@ -62,33 +68,24 @@ export default function TaskDetailsPage() {
         <>
           <DetailsSection title="כללי">
             <Col>
-              <KV label="מזהה" value={String((task as any).id ?? id)} />
+              <KV label="יעד" value={(task as any).dueDate ?? "-"} />
             </Col>
             <Col>
-              <KV label="סטטוס" value={statusChip((task as any).status)} />
+              <KV label="אחראית" value={(task as any).assignee ?? "-"} />
             </Col>
             <Col>
               <KV
-                label="יעד"
+                label="פרויקט"
                 value={
-                  (task as any).dueDate ? String((task as any).dueDate) : "-"
+                  (task as any).projectName ?? (task as any).projectId ?? "-"
                 }
               />
             </Col>
           </DetailsSection>
 
           <DetailsSection title="פרטים">
-            <Col>
-              <KV label="כותרת" value={task.title || "-"} />
-            </Col>
-            <Col>
-              <KV label="תיאור" value={(task as any).description || "-"} />
-            </Col>
-            <Col>
-              <KV label="אחראית" value={(task as any).assignee || "-"} />
-            </Col>
-            <Col>
-              <KV label="פרויקט" value={(task as any).projectId || "-"} />
+            <Col xs={12} md={6}>
+              <KV label="תיאור" value={(task as any).description ?? "-"} />
             </Col>
           </DetailsSection>
         </>

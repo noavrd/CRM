@@ -148,4 +148,47 @@ router.put("/:id/done", async (req, res) => {
   }
 });
 
+// get single task by id
+router.get("/:id", async (req, res) => {
+  try {
+    const userId = (req as any).userId as string | undefined;
+    if (!userId) return res.status(401).json({ error: "unauthorized" });
+
+    const ref = adminDb.collection("tasks").doc(req.params.id);
+    const doc = await ref.get();
+
+    if (!doc.exists || doc.get("userId") !== userId) {
+      return res.status(404).json({ error: "not found" });
+    }
+
+    const data = doc.data() || {};
+    const dueTs = (data.dueDate as Timestamp | null | undefined) ?? null;
+
+    let projectName: string | null = null;
+
+    const projectId = data.projectId ?? null;
+    if (projectId) {
+      const pdoc = await adminDb.collection("projects").doc(projectId).get();
+      if (pdoc.exists) {
+        const pdata = pdoc.data() || {};
+        projectName = (pdata as any).name ?? null;
+      }
+    }
+
+    return res.json({
+      id: doc.id,
+      projectId: data.projectId ?? "",
+      projectName, // ✅ חדש
+      assignee: data.assignee ?? null,
+      description: data.description ?? "",
+      title: data.title ?? "",
+      status: data.status ?? "todo",
+      dueDate: dueTs ? dueTs.toDate().toISOString().slice(0, 10) : null,
+    });
+  } catch (e: any) {
+    console.error("GET /api/tasks/:id error:", e);
+    return res.status(500).json({ error: e?.message || "internal error" });
+  }
+});
+
 export default router;
