@@ -106,7 +106,7 @@ export default function TasksListCard() {
   return (
     <>
       <DashboardCard
-        title="משימות"
+        title="משימות לשבוע הקרוב"
         onAdd={() => setOpen(true)}
         addLabel="הוספת משימה"
         onShowAll={() => navigate("/tasks")}

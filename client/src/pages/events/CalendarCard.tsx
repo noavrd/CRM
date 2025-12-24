@@ -1,9 +1,6 @@
-// src/features/events/CalendarCard.tsx
-
 import { useMemo, useRef, useState } from "react";
 import {
   Card,
-  CardHeader,
   CardContent,
   Box,
   CircularProgress,
@@ -28,10 +25,23 @@ export default function CalendarCard() {
   const [loading, setLoading] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
 
-  // מונע מירוצים/בקשות שמגיעות out-of-order
   const reqSeq = useRef(0);
 
+  const calendarRef = useRef<FullCalendar | null>(null);
+
   const plugins = useMemo(() => [dayGridPlugin, interactionPlugin], []);
+
+  const openCalendarPage = () => {
+    window.open("/events", "_blank", "noopener,noreferrer");
+  };
+
+  // ✅ כשעוברים לשבוע — שיתחיל מהיום (כלומר יקפוץ להיום ואז יחליף תצוגה)
+  const goWeekFromToday = () => {
+    const calApi = calendarRef.current?.getApi();
+    if (!calApi) return;
+    calApi.gotoDate(new Date());
+    calApi.changeView("dayGridWeek");
+  };
 
   const loadRange = async (start: Date, end: Date) => {
     const seq = ++reqSeq.current;
@@ -46,7 +56,6 @@ export default function CalendarCard() {
         )}&end=${encodeURIComponent(end.toISOString())}`
       );
 
-      // אם יצאה בקשה חדשה יותר אחרי זו — לא לעדכן סטייט
       if (seq !== reqSeq.current) return;
 
       const mapped = (items ?? []).map((e) => ({
@@ -77,7 +86,6 @@ export default function CalendarCard() {
             height: "100%",
             minHeight: 520,
             width: "100%",
-
             p: 2,
             borderRadius: 3,
             bgcolor: "background.paper",
@@ -114,9 +122,7 @@ export default function CalendarCard() {
                 flexWrap: "nowrap",
               },
 
-              "& .fc .fc-toolbar-chunk": {
-                minWidth: 0,
-              },
+              "& .fc .fc-toolbar-chunk": { minWidth: 0 },
 
               "& .fc .fc-toolbar-title": {
                 fontSize: "1.15rem",
@@ -132,20 +138,47 @@ export default function CalendarCard() {
                 display: "flex",
                 justifyContent: "center",
               },
+
+              // הכפתור של openPage (אייקון)
+              "& .fc .fc-openPage-button": {
+                width: 36,
+                height: 36,
+                padding: 0,
+                borderRadius: 10,
+                position: "relative",
+              },
+              "& .fc .fc-openPage-button::before": {
+                content: '""',
+                position: "absolute",
+                inset: 0,
+                margin: "auto",
+                width: 18,
+                height: 18,
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "center",
+                backgroundSize: "contain",
+                backgroundImage:
+                  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffffff'%3E%3Cpath d='M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3z'/%3E%3Cpath d='M5 5h6V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-6h-2v6H5V5z'/%3E%3C/svg%3E\")",
+              },
             }}
           >
             <FullCalendar
+              ref={(r) => {
+                calendarRef.current = r;
+              }}
               plugins={plugins}
               initialView="dayGridMonth"
+              customButtons={{
+                openPage: { text: "", click: openCalendarPage },
+                weekFromToday: { text: "שבוע", click: goWeekFromToday },
+              }}
               headerToolbar={{
-                left: "prev,next today",
+                left: "prev,next openPage",
                 center: "title",
-                right: "dayGridMonth,dayGridWeek",
+                right: "dayGridMonth,weekFromToday",
               }}
               buttonText={{
                 dayGridMonth: "חודש",
-                dayGridWeek: "שבוע",
-                today: "היום",
               }}
               locale="he"
               timeZone="Asia/Jerusalem"
