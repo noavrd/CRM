@@ -62,6 +62,27 @@ function buildNavLinks(project: any) {
   return { addressText: addressText || null, googleMapsUrl, wazeUrl };
 }
 
+function fmtHmInIL(d: Date): string {
+  return new Intl.DateTimeFormat("he-IL", {
+    timeZone: "Asia/Jerusalem",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(d);
+}
+
+function buildCalendarTitle(opts: {
+  addressText?: string | null;
+  startsAt: Date;
+  projectName?: string | null;
+}) {
+  const addr = (opts.addressText ?? "").trim();
+  const time = fmtHmInIL(opts.startsAt);
+  const tail = addr || (opts.projectName ?? "").trim() || "ללא כתובת";
+
+  return `ביקור בנכס · ${time} · ${tail}`;
+}
+
 function toVisitTimestamps(
   visitDate?: string,
   visitTime?: string,
@@ -420,7 +441,11 @@ router.post("/", async (req, res) => {
         if (startsAt && endsAt) {
           calendarResult = await upsertGoogleCalendarEvent({
             userId,
-            title: `ביקור בנכס – ${name.trim()}`,
+            title: buildCalendarTitle({
+              addressText: v?.addressText ?? "",
+              startsAt,
+              projectName: name.trim(),
+            }),
 
             addressText: v?.addressText ?? "",
             notes: v?.notes ?? "",
@@ -713,7 +738,11 @@ router.put("/:id", async (req, res) => {
       state.finalVisitId = visitRefToUse.id;
 
       state.visitForCalendar = {
-        title: `ביקור בנכס – ${projectName}`,
+        title: buildCalendarTitle({
+          addressText: visitPayload.addressText ?? "",
+          startsAt: parsed.start,
+          projectName,
+        }),
         addressText: visitPayload.addressText ?? "",
         notes: visitPayload.notes ?? "",
         contact: visitPayload.contact ?? { role: "", name: "", phone: "" },

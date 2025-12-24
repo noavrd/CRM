@@ -71,7 +71,6 @@ export async function upsertGoogleCalendarEvent(params: {
 
   // --- description בפורמט שביקשת ---
   pushLine("פרטי ביקור");
-
   const addressText = (params.addressText ?? "").trim();
   if (addressText) pushLine(`כתובת: ${addressText}`);
 
@@ -89,16 +88,18 @@ export async function upsertGoogleCalendarEvent(params: {
   // כמו בדוגמה שלך: "ניווט:" ואז שורה/שורות
   if (gmaps || waze) {
     pushLine("ניווט:");
-    if (gmaps) pushLine(gmaps);
-    if (waze) pushLine(waze);
-  } else {
-    // אם את רוצה שישאר "ניווט:" גם בלי לינקים, תשאירי את זה:
-    // pushLine("ניווט:");
+    if (gmaps) {
+      pushLine("Google maps: ");
+      pushLine(gmaps);
+    }
+    if (waze) {
+      pushLine("Waze: ");
+      pushLine(waze);
+    }
   }
 
   const notes = (params.notes ?? "").trim();
   if (notes) {
-    pushLine("");
     pushLine("הערות:");
     pushLine(notes);
   }
