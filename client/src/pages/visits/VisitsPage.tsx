@@ -13,7 +13,9 @@ export default function VisitsPage() {
   const [q, setQ] = useState("");
 
   const load = async () => {
-    const data = await api<{ items: UpcomingVisit[] }>("/api/visits/upcoming");
+    const data = await api<{ items: UpcomingVisit[] }>(
+      "/api/visits/upcoming?days=60"
+    );
     setRows(Array.isArray(data?.items) ? data.items : []);
   };
 
@@ -48,11 +50,7 @@ export default function VisitsPage() {
   }, [rows, q]);
 
   const cols: Column<UpcomingVisit>[] = [
-    {
-      id: "proj",
-      header: "פרויקט",
-      render: (r) => r.projectName || "-",
-    },
+    { id: "proj", header: "פרויקט", render: (r) => r.projectName || "-" },
     {
       id: "who",
       header: "איש קשר",
@@ -75,21 +73,8 @@ export default function VisitsPage() {
         return `${day} ${time}`;
       },
     },
-    {
-      id: "addr",
-      header: "כתובת",
-      render: (r) => r.addressText || "-",
-    },
-    {
-      id: "assessor",
-      header: "שמאי",
-      render: (r) => r.assessorName || "-",
-    },
-    {
-      id: "status",
-      header: "סטטוס",
-      render: (r) => r.status || "-",
-    },
+    { id: "addr", header: "כתובת", render: (r) => r.addressText || "-" },
+    { id: "assessor", header: "שמאי", render: (r) => r.assessorName || "-" },
     {
       id: "nav",
       header: "ניווט",
@@ -97,7 +82,6 @@ export default function VisitsPage() {
         const gm = r.nav?.googleMapsUrl;
         const wz = r.nav?.wazeUrl;
 
-        // TableShell לרוב מציג ReactNode – אם אצלך הוא מצפה string תגידי לי.
         return (
           <span style={{ display: "inline-flex", gap: 8 }}>
             {gm ? (

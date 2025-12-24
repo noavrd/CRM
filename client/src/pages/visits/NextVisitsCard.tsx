@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { List, ListItem, ListItemText, Typography } from "@mui/material";
+import {
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  Typography,
+} from "@mui/material";
 import { api } from "@/api/http";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import DashboardCard from "@/components/dashboard/DashboardCard";
@@ -29,8 +35,10 @@ export default function NextVisitsCard() {
         "/api/visits/upcoming?days=7"
       );
       const items = Array.isArray(data?.items) ? data.items : [];
-      setVisits(items.slice(0, 5)); // מציגים עד 5
-    } catch {
+      setVisits(items.slice(0, 5));
+    } catch (e: any) {
+      console.error("load upcoming visits error:", e);
+      setVisits([]);
       error("שגיאה בטעינת ביקורים");
     }
   };
@@ -41,13 +49,15 @@ export default function NextVisitsCard() {
 
   return (
     <DashboardCard
-      title="ביקורים קרובים"
+      title="ביקורים לשבוע הקרוב"
       onShowAll={() => navigate("/visits")}
       showAllLabel="הצג הכל"
       minHeight={220}
       empty={visits.length === 0}
       emptyState={
-        <Typography color="text.secondary">אין ביקורים קרובים</Typography>
+        <Typography color="text.secondary" sx={{ direction: "rtl" }}>
+          אין ביקורים קרובים
+        </Typography>
       }
     >
       <List dense sx={{ width: "100%", px: 1 }}>
@@ -60,24 +70,37 @@ export default function NextVisitsCard() {
           const where = v.addressText || null;
 
           return (
-            <ListItem
-              key={v.id}
-              sx={{ borderBottom: "1px solid rgba(0,0,0,0.08)", py: 0.6 }}
-            >
-              <ListItemText
-                primary={
-                  <Typography fontWeight={500}>
-                    {/* כרגע אין projectName, אז נציג משהו שימושי */}
-                    {v.projectName || "ביקור"}
-                  </Typography>
-                }
-                secondary={
-                  <Typography variant="body2" color="text.secondary">
-                    {fmtWhen(v.startsAt)}
-                    {where ? ` · ${where}` : ""}
-                  </Typography>
-                }
-              />
+            <ListItem key={v.id} disablePadding>
+              <ListItemButton
+                sx={{
+                  borderBottom: "1px solid rgba(0,0,0,0.08)",
+                  py: 0.6,
+                  borderRadius: 1,
+                  cursor: "default",
+                }}
+                disableRipple
+                disableTouchRipple
+                onClick={undefined}
+              >
+                <ListItemText
+                  primary={
+                    <Typography fontWeight={600} sx={{ direction: "rtl" }}>
+                      {v.projectName || "ביקור"}
+                      {who ? ` · ${who}` : ""}
+                    </Typography>
+                  }
+                  secondary={
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ direction: "rtl" }}
+                    >
+                      {fmtWhen(v.startsAt)}
+                      {where ? ` · ${where}` : ""}
+                    </Typography>
+                  }
+                />
+              </ListItemButton>
             </ListItem>
           );
         })}

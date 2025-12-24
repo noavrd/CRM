@@ -4,89 +4,71 @@ import { Timestamp } from "firebase-admin/firestore";
 
 const router = Router();
 
-// // GET /api/visits/next
-// router.get("/next", async (req, res) => {
-//   try {
-//     const userId = (req as any).userId as string;
-//     const now = Timestamp.now();
-//     const q = await adminDb
-//       .collection("visits")
-//       .where("userId", "==", userId)
-//       .where("when", ">=", now)
-//       .orderBy("when", "asc")
-//       .limit(1)
-//       .get();
-//     const doc = q.docs[0];
-//     res.json(doc ? { id: doc.id, ...doc.data() } : null);
-//   } catch (e: any) {
-//     res.status(500).json({ error: e.message });
-//   }
-// });
+const DEFAULT_DAYS = 7;
+const MAX_DAYS = 60;
+const LIMIT_SCAN = 250; // כמה ביקורים להביא למשתמש ואז לסנן בזיכרון (בלי אינדקס)
 
-// // GET /api/visits/upcoming?days=7
-// router.get("/upcoming", async (req, res) => {
-//   try {
-//     const userId = (req as any).userId as string;
-//     const days = Number(req.query.days ?? 7);
-//     const now = new Date();
-//     const until = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+function clampDays(v: any) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return DEFAULT_DAYS;
+  return Math.max(1, Math.min(MAX_DAYS, Math.floor(n)));
+}
 
-//     const q = await adminDb
-//       .collection("visits")
-//       .where("userId", "==", userId)
-//       .where("when", ">=", Timestamp.fromDate(now))
-//       .where("when", "<", Timestamp.fromDate(until))
-//       .orderBy("when", "asc")
-//       .get();
+function startsAtToMs(x: any): number | null {
+  try {
+    const d: Date | null = x?.toDate?.() ?? null;
+    if (!d) return null;
+    const ms = d.getTime();
+    return Number.isFinite(ms) ? ms : null;
+  } catch {
+    return null;
+  }
+}
 
-//     const items = q.docs.map((d) => ({ id: d.id, ...d.data() }));
-//     res.json({ count: items.length, items });
-//   } catch (e: any) {
-//     res.status(500).json({ error: e.message });
-//   }
-// });
+function toIsoOrNullTs(x: any): string | null {
+  try {
+    const iso = x?.toDate?.()?.toISOString?.();
+    return typeof iso === "string" ? iso : null;
+  } catch {
+    return null;
+  }
+}
 
-// // POST /api/visits { title, when(ISO), place? }
-// router.post("/", async (req, res) => {
-//   try {
-//     const userId = (req as any).userId as string;
-//     const { title, when, place } = req.body;
-//     if (!title || !when)
-//       return res.status(400).json({ error: "title & when required" });
-
-//     const ref = await adminDb.collection("visits").add({
-//       userId,
-//       title,
-//       place: place ?? null,
-//       when: Timestamp.fromDate(new Date(when)),
-//       createdAt: Timestamp.now(),
-//     });
-//     res.json({ id: ref.id });
-//   } catch (e: any) {
-//     res.status(500).json({ error: e.message });
-//   }
-// });
-
+// GET /api/visits/upcoming?days=7
 router.get("/upcoming", async (req, res) => {
   try {
-    const userId = (req as any).userId as string;
-    const days = Number(req.query.days ?? 7);
-    const now = new Date();
-    const until = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+    const userId = (req as any).userId as string | undefined;
+    if (!userId) return res.status(401).json({ error: "unauthorized" });
 
-    const q = await adminDb
+    const days = clampDays(req.query.days);
+    const now = new Date();
+    const nowMs = now.getTime();
+    const untilMs = nowMs + days * 24 * 60 * 60 * 1000;
+
+    // ✅ בלי אינדקס: מביאים ביקורים של המשתמש בלבד (אין startsAt בתנאי)
+    const snap = await adminDb
       .collection("visits")
       .where("userId", "==", userId)
-      .where("startsAt", ">=", Timestamp.fromDate(now))
-      .where("startsAt", "<", Timestamp.fromDate(until))
-      .orderBy("startsAt", "asc")
+      .limit(LIMIT_SCAN)
       .get();
 
-    const projectIds = Array.from(
-      new Set(q.docs.map((d) => d.get("projectId")).filter(Boolean))
-    );
+    const docs = snap.docs;
 
-    // שליפת שמות פרויקטים
+    // נבנה רשימה גולמית + נסנן שבוע קדימה + נמיין בזיכרון
+    const filteredDocs = docs
+      .map((d) => {
+        const data: any = d.data();
+        const ms = startsAtToMs(data.startsAt);
+        return { d, data, ms };
+      })
+      .filter((x) => x.ms !== null && x.ms >= nowMs && x.ms < untilMs)
+      .sort((a, b) => a.ms! - b.ms!);
+
+    // projectIds להצגת שם פרויקט
+    const projectIds = Array.from(
+      new Set(filteredDocs.map((x) => x.data.projectId).filter(Boolean))
+    ) as string[];
+
     const projectsSnap = projectIds.length
       ? await adminDb.getAll(
           ...projectIds.map((id) => adminDb.collection("projects").doc(id))
@@ -95,108 +77,109 @@ router.get("/upcoming", async (req, res) => {
 
     const projectNameById = new Map<string, string>();
     projectsSnap.forEach((p) => {
-      if (p.exists) {
-        projectNameById.set(p.id, String(p.get("name") ?? ""));
-      }
+      if (p.exists) projectNameById.set(p.id, String(p.get("name") ?? ""));
     });
 
-    const items = q.docs.map((d) => {
-      const data: any = d.data();
-      const projectId = data.projectId;
+    const items = filteredDocs.map((x) => {
+      const projectId = x.data.projectId ?? null;
 
       return {
-        id: d.id,
+        id: x.d.id,
         projectId,
-        projectName: projectNameById.get(projectId) ?? "",
+        projectName: projectId
+          ? projectNameById.get(String(projectId)) ?? ""
+          : "",
 
-        startsAt: data.startsAt?.toDate?.()?.toISOString?.() ?? null,
-        endsAt: data.endsAt?.toDate?.()?.toISOString?.() ?? null,
-        durationMinutes: data.durationMinutes ?? 60,
+        startsAt: toIsoOrNullTs(x.data.startsAt),
+        endsAt: toIsoOrNullTs(x.data.endsAt),
+        durationMinutes: x.data.durationMinutes ?? 60,
 
-        assessorName: data.assessorName ?? null,
-        status: data.status ?? "scheduled",
+        assessorName: x.data.assessorName ?? null,
+        status: x.data.status ?? "scheduled",
 
-        contact: data.contact ?? {},
-        notes: data.notes ?? "",
-        instructions: data.instructions ?? "",
-        parkingInfo: data.parkingInfo ?? "",
+        contact: x.data.contact ?? {},
+        notes: x.data.notes ?? "",
+        instructions: x.data.instructions ?? "",
+        parkingInfo: x.data.parkingInfo ?? "",
 
-        addressText: data.addressText ?? null,
-        nav: data.nav ?? {},
-        calendar: data.calendar ?? null,
+        addressText: x.data.addressText ?? null,
+        nav: x.data.nav ?? {},
+        calendar: x.data.calendar ?? null,
       };
     });
 
     res.json({ count: items.length, items });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error("GET /api/visits/upcoming error:", e);
+    res.status(500).json({ error: e?.message || "internal error" });
   }
 });
 
+// GET /api/visits/next?days=7
 router.get("/next", async (req, res) => {
   try {
-    const userId = (req as any).userId as string;
-    const days = Number(req.query.days ?? 7);
-    const now = new Date();
-    const until = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+    const userId = (req as any).userId as string | undefined;
+    if (!userId) return res.status(401).json({ error: "unauthorized" });
 
-    const q = await adminDb
+    const days = clampDays(req.query.days);
+    const now = new Date();
+    const nowMs = now.getTime();
+    const untilMs = nowMs + days * 24 * 60 * 60 * 1000;
+
+    const snap = await adminDb
       .collection("visits")
       .where("userId", "==", userId)
-      .where("startsAt", ">=", Timestamp.fromDate(now))
-      .where("startsAt", "<", Timestamp.fromDate(until))
-      .orderBy("startsAt", "asc")
-      .limit(1)
+      .limit(LIMIT_SCAN)
       .get();
 
-    const projectIds = Array.from(
-      new Set(q.docs.map((d) => d.get("projectId")).filter(Boolean))
-    );
+    const docs = snap.docs
+      .map((d) => {
+        const data: any = d.data();
+        const ms = startsAtToMs(data.startsAt);
+        return { d, data, ms };
+      })
+      .filter((x) => x.ms !== null && x.ms >= nowMs && x.ms < untilMs)
+      .sort((a, b) => a.ms! - b.ms!);
 
-    // שליפת שמות פרויקטים
-    const projectsSnap = projectIds.length
-      ? await adminDb.getAll(
-          ...projectIds.map((id) => adminDb.collection("projects").doc(id))
-        )
-      : [];
+    const first = docs[0];
+    if (!first) return res.json({ count: 0, items: [] });
 
-    const projectNameById = new Map<string, string>();
-    projectsSnap.forEach((p) => {
-      if (p.exists) {
-        projectNameById.set(p.id, String(p.get("name") ?? ""));
-      }
-    });
+    const projectId = first.data.projectId ?? null;
+    let projectName = "";
+    if (projectId) {
+      const p = await adminDb
+        .collection("projects")
+        .doc(String(projectId))
+        .get();
+      if (p.exists) projectName = String(p.get("name") ?? "");
+    }
 
-    const items = q.docs.map((d) => {
-      const data: any = d.data();
-      const projectId = data.projectId;
+    const item = {
+      id: first.d.id,
+      projectId,
+      projectName,
 
-      return {
-        id: d.id,
-        projectId,
-        projectName: projectNameById.get(projectId) ?? "",
+      startsAt: toIsoOrNullTs(first.data.startsAt),
+      endsAt: toIsoOrNullTs(first.data.endsAt),
+      durationMinutes: first.data.durationMinutes ?? 60,
 
-        startsAt: data.startsAt?.toDate?.()?.toISOString?.() ?? null,
-        endsAt: data.endsAt?.toDate?.()?.toISOString?.() ?? null,
-        durationMinutes: data.durationMinutes ?? 60,
+      assessorName: first.data.assessorName ?? null,
+      status: first.data.status ?? "scheduled",
 
-        assessorName: data.assessorName ?? null,
-        status: data.status ?? "scheduled",
+      contact: first.data.contact ?? {},
+      notes: first.data.notes ?? "",
+      instructions: first.data.instructions ?? "",
+      parkingInfo: first.data.parkingInfo ?? "",
 
-        contact: data.contact ?? {},
-        notes: data.notes ?? "",
-        instructions: data.instructions ?? "",
-        parkingInfo: data.parkingInfo ?? "",
+      addressText: first.data.addressText ?? null,
+      nav: first.data.nav ?? {},
+      calendar: first.data.calendar ?? null,
+    };
 
-        addressText: data.addressText ?? null,
-        nav: data.nav ?? {},
-        calendar: data.calendar ?? null,
-      };
-    });
-
-    res.json({ count: items.length, items });
+    res.json({ count: 1, items: [item] });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error("GET /api/visits/next error:", e);
+    res.status(500).json({ error: e?.message || "internal error" });
   }
 });
 
