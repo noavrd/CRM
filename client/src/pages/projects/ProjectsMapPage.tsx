@@ -13,7 +13,15 @@ import {
   Button,
   Divider,
   Alert,
+  Drawer,
+  IconButton,
+  List,
+  ListItem,
+  ListItemAvatar,
+  Avatar,
+  ListItemText as MListItemText,
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 import { useSearchParams } from "react-router-dom";
 
 import {
@@ -29,6 +37,16 @@ import {
   MAP_STATUSES_QUERY_KEY,
 } from "./mapStatusQuery";
 
+function formatAddress(p: ProjectMapItem) {
+  const a = p.address || {};
+  const parts = [
+    a.street && a.number ? `${a.street} ${a.number}` : a.street,
+    a.city,
+    a.neighborhood && `שכונת ${a.neighborhood}`,
+  ].filter(Boolean);
+  return parts.join(", ");
+}
+
 export default function ProjectsMapPage() {
   const [params, setParams] = useSearchParams();
 
@@ -39,7 +57,7 @@ export default function ProjectsMapPage() {
   const [selectedStatuses, setSelectedStatuses] =
     useState<ProjectStatus[]>(initialStatuses);
 
-  // נשמור את הפריטים המוצגים כדי שנוכל לחשב מסלול לפי ids
+  // items מהשרת (בשביל lat/lng לפי ids)
   const [visibleItems, setVisibleItems] = useState<ProjectMapItem[]>([]);
   const visibleById = useMemo(
     () => new Map(visibleItems.map((x) => [x.id, x])),
@@ -57,6 +75,18 @@ export default function ProjectsMapPage() {
   } | null>(null);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
+  const [orderedStops, setOrderedStops] = useState<ProjectMapItem[]>([]);
+
+  // Drawer
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const resetRouteOutputs = () => {
+    setDirections(null);
+    setRouteSummary(null);
+    setRouteError(null);
+    setOrderedStops([]);
+    setDrawerOpen(false);
+  };
 
   const onChangeStatuses = (next: ProjectStatus[]) => {
     setSelectedStatuses(next);
@@ -65,17 +95,18 @@ export default function ProjectsMapPage() {
     p.set(MAP_STATUSES_QUERY_KEY, encodeStatuses(next));
     setParams(p, { replace: true });
 
-    // שינוי סינון -> כדאי לאפס מסלול (כדי שלא יהיו ids שלא קיימים)
+    // איפוס מסלול
     setRouteIds([]);
-    setDirections(null);
-    setRouteSummary(null);
-    setRouteError(null);
+    resetRouteOutputs();
   };
 
   const onToggleRouteId = (id: string) => {
+    // שינוי בחירה -> לנקות תוצאות מסלול (כדי שלא יציג מסלול ישן)
     setRouteError(null);
     setDirections(null);
     setRouteSummary(null);
+    setOrderedStops([]);
+    setDrawerOpen(false);
 
     setRouteIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -84,9 +115,7 @@ export default function ProjectsMapPage() {
 
   const clearRoute = () => {
     setRouteIds([]);
-    setDirections(null);
-    setRouteSummary(null);
-    setRouteError(null);
+    resetRouteOutputs();
   };
 
   const computeRoute = async () => {
@@ -94,6 +123,8 @@ export default function ProjectsMapPage() {
     setRouteLoading(true);
     setDirections(null);
     setRouteSummary(null);
+    setOrderedStops([]);
+    setDrawerOpen(false);
 
     try {
       if (routeIds.length < 2) {
@@ -101,17 +132,22 @@ export default function ProjectsMapPage() {
         return;
       }
 
-      const points = routeIds
+      // פריטים שנבחרו לפי סדר הבחירה
+      const chosen = routeIds
         .map((id) => visibleById.get(id))
-        .filter(Boolean)
-        .map((p) => ({ lat: p!.address.lat, lng: p!.address.lng }));
+        .filter(Boolean) as ProjectMapItem[];
 
-      if (points.length < 2) {
+      if (chosen.length < 2) {
         setRouteError(
           "לא נמצאו נקודות חוקיות למסלול (בדקי שהן קיימות במפה אחרי הסינון)."
         );
         return;
       }
+
+      const points = chosen.map((p) => ({
+        lat: p.address.lat,
+        lng: p.address.lng,
+      }));
 
       const origin = points[0];
       const destination = points[points.length - 1];
@@ -130,12 +166,26 @@ export default function ProjectsMapPage() {
 
       setDirections(res);
 
-      const legSum = res.routes?.[0]?.legs ?? [];
-      const totalMeters = legSum.reduce(
+      // --- סדר עצירות אופטימלי ---
+      const route = res.routes?.[0];
+      const order = route?.waypoint_order ?? [];
+
+      const originItem = chosen[0];
+      const destinationItem = chosen[chosen.length - 1];
+      const middle = chosen.slice(1, -1);
+
+      const optimizedMiddle = order.map((idx) => middle[idx]).filter(Boolean);
+
+      const finalStops = [originItem, ...optimizedMiddle, destinationItem];
+      setOrderedStops(finalStops);
+
+      // --- סיכום זמן/מרחק ---
+      const legs = route?.legs ?? [];
+      const totalMeters = legs.reduce(
         (s, leg) => s + (leg.distance?.value ?? 0),
         0
       );
-      const totalSeconds = legSum.reduce(
+      const totalSeconds = legs.reduce(
         (s, leg) => s + (leg.duration?.value ?? 0),
         0
       );
@@ -155,6 +205,9 @@ export default function ProjectsMapPage() {
         : "—";
 
       setRouteSummary({ distanceText, durationText });
+
+      // פותח Drawer אחרי חישוב מוצלח
+      setDrawerOpen(true);
     } catch (e: any) {
       console.error(e);
       setRouteError(
@@ -165,6 +218,8 @@ export default function ProjectsMapPage() {
       setRouteLoading(false);
     }
   };
+
+  const drawerWidth = 420;
 
   return (
     <Box sx={{ p: 2 }}>
@@ -182,9 +237,7 @@ export default function ProjectsMapPage() {
               variant={routeMode ? "contained" : "outlined"}
               onClick={() => {
                 setRouteMode((v) => !v);
-                setDirections(null);
-                setRouteSummary(null);
-                setRouteError(null);
+                resetRouteOutputs();
               }}
             >
               מצב מסלול
@@ -260,7 +313,7 @@ export default function ProjectsMapPage() {
               flexWrap="wrap"
             >
               <Typography sx={{ direction: "rtl" }}>
-                בחרי נקודות ע״י לחיצה על הסיכות במפה (צריך לפחות 2).
+                בחר נקודות ע״י לחיצה על הסיכות במפה (לפחות 2)
               </Typography>
 
               <Button onClick={clearRoute} disabled={!routeIds.length}>
@@ -273,6 +326,15 @@ export default function ProjectsMapPage() {
                 disabled={routeIds.length < 2 || routeLoading}
               >
                 חשב מסלול
+              </Button>
+
+              {/* כפתור לפתיחת Drawer גם ידנית */}
+              <Button
+                variant="outlined"
+                onClick={() => setDrawerOpen(true)}
+                disabled={orderedStops.length < 2}
+              >
+                הצג מסלול
               </Button>
 
               {routeSummary && (
@@ -294,6 +356,7 @@ export default function ProjectsMapPage() {
         )}
       </Paper>
 
+      {/* המפה */}
       <Paper sx={{ height: "calc(100vh - 140px)" }}>
         <ProjectsMap
           selectedStatuses={selectedStatuses}
@@ -306,6 +369,107 @@ export default function ProjectsMapPage() {
           onItemsLoaded={setVisibleItems}
         />
       </Paper>
+
+      {/* Drawer מסלול */}
+      <Drawer
+        anchor="right"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        PaperProps={{
+          sx: {
+            width: drawerWidth,
+            maxWidth: "90vw",
+            direction: "rtl",
+          },
+        }}
+      >
+        <Box sx={{ p: 2 }}>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Typography variant="h6">המסלול</Typography>
+            <IconButton onClick={() => setDrawerOpen(false)}>
+              <CloseIcon />
+            </IconButton>
+          </Stack>
+
+          <Divider sx={{ my: 2 }} />
+
+          {!orderedStops.length && (
+            <Typography color="text.secondary">
+              אין מסלול להצגה עדיין. חשבי מסלול כדי לראות סדר עצירות.
+            </Typography>
+          )}
+
+          {routeSummary && (
+            <Paper variant="outlined" sx={{ p: 1.5, mb: 2 }}>
+              <Typography sx={{ fontWeight: 700 }}>סיכום</Typography>
+              <Typography sx={{ mt: 0.5 }}>
+                זמן: {routeSummary.durationText}
+              </Typography>
+              <Typography>מרחק: {routeSummary.distanceText}</Typography>
+            </Paper>
+          )}
+
+          {orderedStops.length >= 2 && (
+            <>
+              <Box
+                sx={{ display: "flex", gap: 1.5, mb: 1 }}
+                alignContent="center"
+              >
+                <Button
+                  size="small"
+                  onClick={clearRoute}
+                  sx={{ flex: 0.3, py: 0.75 }}
+                >
+                  נקה
+                </Button>
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={computeRoute}
+                  disabled={routeIds.length < 2 || routeLoading}
+                  sx={{ flex: 0.3, py: 0.75 }}
+                >
+                  חשב מחדש
+                </Button>
+              </Box>
+
+              <List dense>
+                {orderedStops.map((p, idx) => (
+                  <ListItem key={p.id} alignItems="flex-start" sx={{ py: 1 }}>
+                    <ListItemAvatar>
+                      <Avatar sx={{ width: 28, height: 28, fontSize: 14 }}>
+                        {idx + 1}
+                      </Avatar>
+                    </ListItemAvatar>
+
+                    <MListItemText
+                      primary={
+                        <Typography sx={{ fontWeight: 700 }}>
+                          {p.name}
+                        </Typography>
+                      }
+                      secondary={
+                        <Box sx={{ mt: 0.5 }}>
+                          <Typography variant="body2" sx={{ opacity: 0.85 }}>
+                            {formatAddress(p) || "כתובת לא זמינה"}
+                          </Typography>
+                          <Typography variant="caption" sx={{ opacity: 0.7 }}>
+                            סטטוס: {statusLabel(p.status)}
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </>
+          )}
+        </Box>
+      </Drawer>
     </Box>
   );
 }

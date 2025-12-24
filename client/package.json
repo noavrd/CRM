@@ -13,7 +13,7 @@
     "@fullcalendar/interaction": "^6.1.20",
     "@fullcalendar/react": "^6.1.20",
     "@fullcalendar/timegrid": "^6.1.20",
-    "@mui/icons-material": "^7.3.2",
+    "@mui/icons-material": "^7.3.6",
     "@mui/material": "^7.3.2",
     "@mui/stylis-plugin-rtl": "^7.3.3",
     "@mui/x-charts": "^8.15.0",
