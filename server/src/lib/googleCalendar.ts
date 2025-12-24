@@ -47,20 +47,68 @@ export type UpsertGoogleCalendarEventResult =
 
 export async function upsertGoogleCalendarEvent(params: {
   userId: string;
-  existingEventId?: string; // אם אין — עושים insert
+  existingEventId?: string;
+
   title: string;
-  description?: string;
-  location?: string;
+
+  // "מה שעבד": פרטי ביקור בתיאור
+  addressText?: string;
+  notes?: string;
+  contact?: { role?: string; name?: string; phone?: string };
+  nav?: { googleMapsUrl?: string | null; wazeUrl?: string | null };
+
   startsAt: Date;
   endsAt: Date;
 }): Promise<UpsertGoogleCalendarEventResult> {
   const client = await getCalendarClient(params.userId);
   if (!client.ok) return client;
 
+  const lines: string[] = [];
+  const pushLine = (s?: string | null) => {
+    const t = (s ?? "").trim();
+    if (t) lines.push(t);
+  };
+
+  // --- description בפורמט שביקשת ---
+  pushLine("פרטי ביקור");
+
+  const addressText = (params.addressText ?? "").trim();
+  if (addressText) pushLine(`כתובת: ${addressText}`);
+
+  const role = params.contact?.role?.trim() ?? "";
+  const name = params.contact?.name?.trim() ?? "";
+  const phone = params.contact?.phone?.trim() ?? "";
+
+  const contactLabel = [role, name].filter(Boolean).join(" – ");
+  if (contactLabel) pushLine(`איש קשר: ${contactLabel}`);
+  if (phone) pushLine(`טלפון: ${phone}`);
+
+  const gmaps = params.nav?.googleMapsUrl ?? null;
+  const waze = params.nav?.wazeUrl ?? null;
+
+  // כמו בדוגמה שלך: "ניווט:" ואז שורה/שורות
+  if (gmaps || waze) {
+    pushLine("ניווט:");
+    if (gmaps) pushLine(gmaps);
+    if (waze) pushLine(waze);
+  } else {
+    // אם את רוצה שישאר "ניווט:" גם בלי לינקים, תשאירי את זה:
+    // pushLine("ניווט:");
+  }
+
+  const notes = (params.notes ?? "").trim();
+  if (notes) {
+    pushLine("");
+    pushLine("הערות:");
+    pushLine(notes);
+  }
+
+  const description = lines.join("\n");
+
   const requestBody = {
     summary: params.title,
-    description: params.description || "",
-    location: params.location || "",
+    description,
+    location: addressText || undefined, // Location ב-Google event
     start: { dateTime: params.startsAt.toISOString() },
     end: { dateTime: params.endsAt.toISOString() },
   };
@@ -73,8 +121,7 @@ export async function upsertGoogleCalendarEvent(params: {
         requestBody,
       });
 
-      // אם גוגל לא מחזיר id, נשארים עם הישן (עדיין string)
-      const eventId = resp.data.id ?? params.existingEventId;
+      const eventId = resp.data.id || params.existingEventId;
 
       console.log("[gcal] Updated event:", eventId, resp.data?.htmlLink);
 
@@ -82,7 +129,7 @@ export async function upsertGoogleCalendarEvent(params: {
         ok: true,
         calendarId: "primary",
         eventId,
-        htmlLink: resp.data.htmlLink ?? null,
+        htmlLink: resp.data.htmlLink || null,
         action: "updated",
       };
     }
@@ -94,12 +141,7 @@ export async function upsertGoogleCalendarEvent(params: {
 
     const eventId = resp.data.id;
     if (!eventId) {
-      // לא מחזירים ok:true בלי eventId
-      return {
-        ok: false,
-        reason: "api_error",
-        detail: "Google Calendar insert returned no event id",
-      };
+      return { ok: false, reason: "api_error", detail: "Missing event id" };
     }
 
     console.log("[gcal] Created event:", eventId, resp.data?.htmlLink);
@@ -108,7 +150,7 @@ export async function upsertGoogleCalendarEvent(params: {
       ok: true,
       calendarId: "primary",
       eventId,
-      htmlLink: resp.data.htmlLink ?? null,
+      htmlLink: resp.data.htmlLink || null,
       action: "created",
     };
   } catch (e: any) {
@@ -148,7 +190,6 @@ export async function deleteGoogleCalendarEvent(params: {
     });
 
     console.log("[gcal] Deleted event:", params.eventId);
-
     return { ok: true };
   } catch (e: any) {
     console.error("[gcal] Delete failed", {

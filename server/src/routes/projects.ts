@@ -411,6 +411,7 @@ router.post("/", async (req, res) => {
         .collection("visits")
         .doc(createdVisitId)
         .get();
+
       if (visitDoc.exists) {
         const v = visitDoc.data() as any;
         const startsAt: Date | null = v.startsAt?.toDate?.() ?? null;
@@ -420,8 +421,12 @@ router.post("/", async (req, res) => {
           calendarResult = await upsertGoogleCalendarEvent({
             userId,
             title: `ביקור בנכס – ${name.trim()}`,
-            description: v?.notes ? `הערות: ${v.notes}` : "",
-            location: v?.addressText ?? "",
+
+            addressText: v?.addressText ?? "",
+            notes: v?.notes ?? "",
+            contact: v?.contact ?? { role: "", name: "", phone: "" },
+            nav: v?.nav ?? { googleMapsUrl: null, wazeUrl: null },
+
             startsAt,
             endsAt,
           });
@@ -566,8 +571,10 @@ router.put("/:id", async (req, res) => {
     // ---- state יציב (מונע never + נוח ליומן אחרי טרנזקציה) ----
     type VisitForCalendar = {
       title: string;
-      description: string;
-      location: string;
+      addressText: string;
+      notes: string;
+      contact: { role: string; name: string; phone: string };
+      nav: { googleMapsUrl: string | null; wazeUrl: string | null };
       startsAt: Date;
       endsAt: Date;
     };
@@ -587,7 +594,6 @@ router.put("/:id", async (req, res) => {
     };
 
     await adminDb.runTransaction(async (tx) => {
-      // ✅ READS FIRST
       const projSnap = await tx.get(projectRef);
       if (!projSnap.exists || projSnap.get("userId") !== userId) {
         const err: any = new Error("not found");
@@ -627,8 +633,6 @@ router.put("/:id", async (req, res) => {
         asset !== undefined
           ? asset?.assessor
           : (projSnap.get("asset") as any)?.assessor ?? "";
-
-      // ✅ WRITES AFTER ALL READS
 
       // תמיד מעדכנות פרויקט
       tx.update(projectRef, projectPatch);
@@ -710,8 +714,10 @@ router.put("/:id", async (req, res) => {
 
       state.visitForCalendar = {
         title: `ביקור בנכס – ${projectName}`,
-        description: visitPayload.notes ? `הערות: ${visitPayload.notes}` : "",
-        location: visitPayload.addressText ?? "",
+        addressText: visitPayload.addressText ?? "",
+        notes: visitPayload.notes ?? "",
+        contact: visitPayload.contact ?? { role: "", name: "", phone: "" },
+        nav: visitPayload.nav ?? { googleMapsUrl: null, wazeUrl: null },
         startsAt: parsed.start,
         endsAt: parsed.end,
       };
@@ -733,8 +739,10 @@ router.put("/:id", async (req, res) => {
           userId,
           existingEventId: state.existingEventId, // string | undefined
           title: vfc.title,
-          description: vfc.description,
-          location: vfc.location,
+          addressText: vfc.addressText,
+          notes: vfc.notes,
+          contact: vfc.contact,
+          nav: vfc.nav,
           startsAt: vfc.startsAt,
           endsAt: vfc.endsAt,
         });
