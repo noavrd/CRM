@@ -240,7 +240,7 @@ export default function ProjectsMapPage() {
                 resetRouteOutputs();
               }}
             >
-              מצב מסלול
+              {routeMode ? "סגירת מסלול" : "יצירת מסלול"}
             </Button>
 
             <FormControl size="small" sx={{ width: 260 }}>
