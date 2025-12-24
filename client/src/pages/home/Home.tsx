@@ -8,7 +8,7 @@ import ProjectsMapCard from "../projects/ProjectsMapCard";
 import { api } from "@/api/http";
 
 const H_FIRST = { xs: 350, sm: 260, md: 260, lg: 280 };
-const H_SECOND = { xs: 350, sm: 290, md: 320, lg: 340 };
+const H_SECOND = { xs: 350, sm: 360, md: 320, lg: 340 };
 
 export default function Home() {
   const cellSx = { display: "flex" as const };
@@ -41,14 +41,14 @@ export default function Home() {
 
   return (
     <Box>
-      {/* שורה ראשונה – ביקורים + לידים */}
+      {/* שורה ראשונה – ביקורים */}
       <Grid container spacing={2} sx={{ mb: 2 }} alignItems="stretch">
-        <Grid size={{ xs: 12, sm: 6, md: 6 }} sx={cellSx}>
+        {/* <Grid size={{ xs: 12, sm: 6, md: 6 }} sx={cellSx}>
           <Box sx={wrapSx(H_FIRST)}>
             <LeadsCard />
           </Box>
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 6 }} sx={cellSx}>
+        </Grid> */}
+        <Grid size={{ xs: 12, sm: 12, md: 12 }} sx={cellSx}>
           <Box sx={wrapSx(H_FIRST)}>
             <NextVisits />
           </Box>
