@@ -325,6 +325,13 @@ router.post("/", async (req, res) => {
         return;
       }
 
+      const firstName = String(customer?.firstName ?? "").trim();
+      const lastName = String(customer?.lastName ?? "").trim();
+      const legacyName = String(customer?.name ?? "").trim();
+
+      const fullName =
+        [firstName, lastName].filter(Boolean).join(" ").trim() || legacyName;
+
       tx.create(projectRef, {
         userId,
         name: name.trim(),
@@ -332,16 +339,19 @@ router.post("/", async (req, res) => {
         archived: Boolean(archived),
 
         customer: {
-          name: customer?.name ?? "",
+          firstName,
+          lastName,
+          name: fullName,
+
           phone: customer?.phone ?? "",
           email: customer?.email ?? "",
           shippingEmail: customer?.shippingEmail ?? "",
-          city: customer?.city ?? "",
+          city: "",
+
           address: customer?.address ?? "",
           company: customer?.company ?? "",
           description: customer?.description ?? "",
         },
-
         address: {
           city: address?.city ?? "",
           street: address?.street ?? "",
@@ -569,8 +579,25 @@ router.put("/:id", async (req, res) => {
       projectPatch.status = status;
     }
 
-    if (customer !== undefined)
-      projectPatch.customer = stripUndefinedDeep(customer);
+    if (customer !== undefined) {
+      const clean = stripUndefinedDeep(customer) as any;
+
+      const firstName = String(clean?.firstName ?? "").trim();
+      const lastName = String(clean?.lastName ?? "").trim();
+      const legacyName = String(clean?.name ?? "").trim();
+
+      const fullName =
+        [firstName, lastName].filter(Boolean).join(" ").trim() || legacyName;
+
+      projectPatch.customer = {
+        ...clean,
+        firstName,
+        lastName,
+        name: fullName,
+        // cause we removed it so it will not collapse
+        city: "",
+      };
+    }
 
     if (address !== undefined) {
       const cleanAddr = stripUndefinedDeep(address) as any;

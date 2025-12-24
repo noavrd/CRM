@@ -13,6 +13,8 @@ import {
   InputAdornment,
   Divider,
   Typography,
+  Switch,
+  FormControlLabel,
 } from "@mui/material";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
@@ -28,6 +30,8 @@ import { useEffect, useMemo, useState } from "react";
 import { defaultProjectForm, mergeProjectForm } from "../defaultValues";
 import { type ProjectForm } from "../types";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
+
+const VAT_RATE = 0.18;
 
 const steps = [
   {
@@ -73,22 +77,75 @@ export default function CreateProjectDialog({
   mode?: "create" | "edit";
   loading?: boolean;
 }) {
+  type FormErrors = {
+    name?: string;
+
+    customerFirstName?: string;
+    customerLastName?: string;
+    customerPhone?: string;
+    customerEmail?: string;
+
+    address?: string;
+  };
+
+  const [errors, setErrors] = useState<FormErrors>({});
   const [form, setForm] = useState<ProjectForm>(mergeProjectForm(initial));
   const [step, setStep] = useState<StepKey>("customer");
 
-  const canSave = useMemo(() => form.name.trim().length > 0, [form.name]);
+  const isValidEmail = (v: string) => {
+    const s = v.trim();
+    if (!s) return true; // אימייל לא חובה, אבל אם יש - חייב להיות תקין
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+  };
+
+  const normalizePhone = (v: string) => v.replace(/[^\d+]/g, "").trim();
+
+  const isValidPhone = (v: string) => {
+    const s = normalizePhone(v);
+    // ישראל לרוב: 05XXXXXXXX / 0XXXXXXXXX / +972...
+    // כאן ולידציה “סבירה” בלי להיות קשוחה מדי:
+    return /^0\d{8,9}$/.test(s) || /^\+?\d{9,15}$/.test(s);
+  };
+
+  // כתובת חובה: לפחות רחוב + מספר + עיר (כי את משתמשת בזה גם לאוטוקומפליט/מפות/ביקורים)
+  const hasRequiredAddress = (a: ProjectForm["address"]) =>
+    Boolean(String(a?.street || "").trim()) &&
+    Boolean(String(a?.number || "").trim()) &&
+    Boolean(String(a?.city || "").trim());
+
+  function calcPaymentTotal(p?: { amount?: number; plusVAT?: boolean }) {
+    const base = Number(p?.amount) || 0;
+    return p?.plusVAT ? base * (1 + VAT_RATE) : base;
+  }
+
+  const canSave = useMemo(() => {
+    const first = String((form as any)?.customer?.firstName ?? "").trim();
+    const last = String((form as any)?.customer?.lastName ?? "").trim();
+    const phone = String(form.customer.phone ?? "").trim();
+
+    return (
+      form.name.trim().length > 0 &&
+      first.length > 0 &&
+      last.length > 0 &&
+      isValidPhone(phone) &&
+      hasRequiredAddress(form.address)
+    );
+  }, [form]);
 
   const close = () => {
     onClose();
   };
 
-  const next = () =>
+  const next = () => {
+    if (!validateStep(step)) return;
+
     setStep(
       (prev) =>
         steps[
           Math.min(steps.findIndex((s) => s.key === prev) + 1, steps.length - 1)
         ].key
     );
+  };
   const back = () =>
     setStep(
       (prev) =>
@@ -96,7 +153,11 @@ export default function CreateProjectDialog({
     );
 
   const save = async () => {
-    if (!canSave || loading) return;
+    const okCustomer = validateStep("customer");
+    const okAddress = validateStep("address");
+    const okName = form.name.trim().length > 0;
+
+    if (!okName || !okCustomer || !okAddress || loading) return;
     await onSubmit(form);
   };
 
@@ -105,6 +166,38 @@ export default function CreateProjectDialog({
     setForm(initial ?? defaultProjectForm);
     setStep("customer");
   }, [open, initial]);
+
+  const validateStep = (k: StepKey) => {
+    const nextErrors: FormErrors = {};
+
+    // תמיד: שם פרויקט חובה (מופיע למעלה בכל שלב)
+    if (!form.name.trim()) nextErrors.name = "חובה למלא שם פרויקט";
+
+    if (k === "customer") {
+      const first = String((form as any).customer.firstName ?? "").trim();
+      const last = String((form as any).customer.lastName ?? "").trim();
+      const phone = String(form.customer.phone ?? "").trim();
+      const email = String(form.customer.email ?? "").trim();
+
+      if (!first) nextErrors.customerFirstName = "חובה למלא שם פרטי";
+      if (!last) nextErrors.customerLastName = "חובה למלא שם משפחה";
+      if (!phone) nextErrors.customerPhone = "חובה למלא טלפון";
+      else if (!isValidPhone(phone))
+        nextErrors.customerPhone = "מספר טלפון לא תקין";
+
+      if (email && !isValidEmail(email))
+        nextErrors.customerEmail = "אימייל לא תקין";
+    }
+
+    if (k === "address") {
+      if (!hasRequiredAddress(form.address)) {
+        nextErrors.address = "חובה לבחור כתובת מלאה (עיר, רחוב ומספר)";
+      }
+    }
+
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
 
   return (
     <Dialog
@@ -166,7 +259,12 @@ export default function CreateProjectDialog({
               label="שם פרויקט"
               fullWidth
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              error={Boolean(errors.name)}
+              helperText={errors.name}
+              onChange={(e) => {
+                setForm({ ...form, name: e.target.value });
+                if (errors.name) setErrors((p) => ({ ...p, name: undefined }));
+              }}
             />
           </Grid>
           <Grid item xs={12} md={3}>
@@ -198,32 +296,59 @@ export default function CreateProjectDialog({
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="שם לקוח"
-                value={form.customer.name}
+                label="שם פרטי"
+                value={(form as any).customer.firstName ?? ""}
+                error={Boolean(errors.customerFirstName)}
+                helperText={errors.customerFirstName}
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    customer: { ...form.customer, name: e.target.value },
-                  })
+                    customer: { ...form.customer, firstName: e.target.value },
+                  } as any)
                 }
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">👤</InputAdornment>
-                  ),
-                }}
               />
             </Grid>
+
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="שם משפחה"
+                value={(form as any).customer.lastName ?? ""}
+                error={Boolean(errors.customerLastName)}
+                helperText={errors.customerLastName}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    customer: { ...form.customer, lastName: e.target.value },
+                  } as any)
+                }
+              />
+            </Grid>
+
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
                 label="טלפון"
                 value={form.customer.phone}
-                onChange={(e) =>
+                error={Boolean(errors.customerPhone)}
+                helperText={errors.customerPhone}
+                onChange={(e) => {
+                  const raw = e.target.value;
                   setForm({
                     ...form,
-                    customer: { ...form.customer, phone: e.target.value },
-                  })
-                }
+                    customer: { ...form.customer, phone: raw },
+                  });
+                }}
+                onBlur={() => {
+                  const v = String(form.customer.phone ?? "");
+                  setErrors((prev) => ({
+                    ...prev,
+                    customerPhone:
+                      v.trim() && !isValidPhone(v)
+                        ? "מספר טלפון לא תקין"
+                        : undefined,
+                  }));
+                }}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">📞</InputAdornment>
@@ -236,30 +361,28 @@ export default function CreateProjectDialog({
                 fullWidth
                 label='דוא"ל'
                 value={form.customer.email}
+                error={Boolean(errors.customerEmail)}
+                helperText={errors.customerEmail}
                 onChange={(e) =>
                   setForm({
                     ...form,
                     customer: { ...form.customer, email: e.target.value },
                   })
                 }
+                onBlur={() => {
+                  const v = String(form.customer.email ?? "");
+                  setErrors((prev) => ({
+                    ...prev,
+                    customerEmail: isValidEmail(v)
+                      ? undefined
+                      : "אימייל לא תקין",
+                  }));
+                }}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">@</InputAdornment>
                   ),
                 }}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="עיר"
-                value={form.customer.city}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    customer: { ...form.customer, city: e.target.value },
-                  })
-                }
               />
             </Grid>
             <Grid item xs={12}>
@@ -304,6 +427,11 @@ export default function CreateProjectDialog({
                   });
                 }}
               />
+              {errors.address ? (
+                <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                  {errors.address}
+                </Typography>
+              ) : null}
             </Box>
 
             {/* שאר שדות הכתובת (בלי עיר/רחוב/מספר) */}
@@ -666,23 +794,28 @@ export default function CreateProjectDialog({
                 />
               </Grid>
               <Grid item xs={12} md={3}>
-                <TextField
-                  select
-                  fullWidth
-                  label='בתוספת מע"מ'
-                  value={form.payments[0]?.plusVAT ?? false}
-                  onChange={(e) => {
-                    const arr = [...form.payments];
-                    arr[0] = {
-                      ...(arr[0] || {}),
-                      plusVAT: e.target.value === "true",
-                    };
-                    setForm({ ...form, payments: arr });
+                <FormControlLabel
+                  label='להוסיף מע"מ'
+                  sx={{
+                    m: 0,
+                    height: "100%",
+                    display: "flex",
+                    alignItems: "center",
                   }}
-                >
-                  <MenuItem value={"false" as any}>לא</MenuItem>
-                  <MenuItem value={"true" as any}>כן</MenuItem>
-                </TextField>
+                  control={
+                    <Switch
+                      checked={Boolean(form.payments[0]?.plusVAT)}
+                      onChange={(e) => {
+                        const arr = [...form.payments];
+                        arr[0] = {
+                          ...(arr[0] || {}),
+                          plusVAT: e.target.checked,
+                        };
+                        setForm({ ...form, payments: arr });
+                      }}
+                    />
+                  }
+                />
               </Grid>
             </Grid>
             <TextField
@@ -696,7 +829,7 @@ export default function CreateProjectDialog({
             <Typography sx={{ mt: -1 }}>
               סה״כ: ₪{" "}
               {form.payments
-                .reduce((s, p) => s + (p.amount || 0), 0)
+                .reduce((s, p) => s + calcPaymentTotal(p), 0)
                 .toFixed(2)}
             </Typography>
           </Stack>

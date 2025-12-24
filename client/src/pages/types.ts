@@ -113,11 +113,12 @@ export type ProjectForm = {
   status: ProjectStatus;
 
   customer: {
-    name: string;
+    firstName: string;
+    lastName: string;
+    name?: string;
     phone: string;
     email: string;
     shippingEmail?: string;
-    city: string;
     address?: string;
   };
 
