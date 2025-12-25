@@ -252,7 +252,6 @@ export default function CreateProjectDialog({
           </ButtonGroup>
         </Box>
 
-        {/* כותרות קטנות לשדות שם/שלב/סטטוס כמו בסקופ 1 */}
         <Grid container spacing={2} sx={{ mb: 1 }}>
           <Grid item xs={12} md={6}>
             <TextField
@@ -349,17 +348,13 @@ export default function CreateProjectDialog({
                         : undefined,
                   }));
                 }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">📞</InputAdornment>
-                  ),
-                }}
               />
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
                 label='דוא"ל'
+                type="email"
                 value={form.customer.email}
                 error={Boolean(errors.customerEmail)}
                 helperText={errors.customerEmail}
@@ -734,13 +729,6 @@ export default function CreateProjectDialog({
                     visit: { ...form.visit, visitTime: e.target.value },
                   })
                 }
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <AccessTimeOutlinedIcon fontSize="small" />
-                    </InputAdornment>
-                  ),
-                }}
               />
             </Grid>
             <Grid item xs={12}>
@@ -763,7 +751,6 @@ export default function CreateProjectDialog({
 
         {step === "payments" && (
           <Stack spacing={2}>
-            {/* אפשר להרחיב לרשימה דינמית; כאן שורה אחת לדוגמה */}
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
                 <TextField
