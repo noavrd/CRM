@@ -66,15 +66,9 @@ export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
   const navItems: NavItem[] = useMemo(
     () => [
       {
-        label: "דשבורד",
+        label: "דף הבית",
         path: "/",
         icon: <HomeOutlinedIcon />,
-        showInDropdown: true,
-      },
-      {
-        label: "לידים",
-        path: "/leads",
-        icon: <PeopleOutlineIcon />,
         showInDropdown: true,
       },
       {

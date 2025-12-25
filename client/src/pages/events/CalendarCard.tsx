@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   Card,
   CardContent,
@@ -9,6 +9,7 @@ import {
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import type { DatesSetArg, EventInput } from "@fullcalendar/core";
 import { api } from "@/api/http";
 
 type ApiEvent = {
@@ -20,12 +21,23 @@ type ApiEvent = {
   location?: string | null;
 };
 
+function toCalendarEvents(items: ApiEvent[]): EventInput[] {
+  return items.map((e) => ({
+    id: e.id,
+    title: e.title,
+    start: e.startsAt ?? undefined,
+    end: e.endsAt ?? undefined,
+    url: e.htmlLink ?? undefined,
+    extendedProps: {
+      location: e.location ?? undefined,
+    },
+  }));
+}
+
 export default function CalendarCard() {
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<EventInput[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
-
-  const reqSeq = useRef(0);
 
   const calendarRef = useRef<FullCalendar | null>(null);
 
@@ -43,40 +55,63 @@ export default function CalendarCard() {
     calApi.changeView("dayGridWeek");
   };
 
-  const loadRange = async (start: Date, end: Date) => {
-    const seq = ++reqSeq.current;
+  const lastRangeKeyRef = useRef<string | null>(null);
+  const inflightRef = useRef<AbortController | null>(null);
+
+  const toKey = (start: Date, end: Date) =>
+    `${start.toISOString()}__${end.toISOString()}`;
+
+  const loadRange = useCallback(async (start: Date, end: Date) => {
+    const key = toKey(start, end);
+    if (lastRangeKeyRef.current === key) return;
+    lastRangeKeyRef.current = key;
+
+    inflightRef.current?.abort();
+    const ac = new AbortController();
+    inflightRef.current = ac;
 
     setLoading(true);
     setErrorText(null);
 
     try {
-      const items = await api<ApiEvent[]>(
+      // חשוב: מניחה שה-API מחזיר מערך של ApiEvent
+      const res = await api(
         `/api/events/range?start=${encodeURIComponent(
           start.toISOString()
-        )}&end=${encodeURIComponent(end.toISOString())}`
+        )}&end=${encodeURIComponent(end.toISOString())}`,
+        { signal: ac.signal }
       );
 
-      if (seq !== reqSeq.current) return;
+      // ✅ תמיכה גם במקרה שהשרת מחזיר { items: [...] } וגם במקרה שמחזיר [...]
+      const raw = (res as any)?.items ?? res;
+      const items: ApiEvent[] = Array.isArray(raw) ? raw : [];
 
-      const mapped = (items ?? []).map((e) => ({
-        id: e.id,
-        title: e.title || "(ללא כותרת)",
-        start: e.startsAt ?? undefined,
-        end: e.endsAt ?? undefined,
-        url: e.htmlLink ?? undefined,
-        extendedProps: { location: e.location ?? null },
-      }));
-
-      setEvents(mapped);
+      setEvents(toCalendarEvents(items));
     } catch (e: any) {
+      if (e?.name === "AbortError") return;
       console.error("[CalendarCard] loadRange failed:", e);
-      if (seq !== reqSeq.current) return;
-      setEvents([]);
-      setErrorText(e?.response?.error || e?.message || "שגיאה בטעינת יומן");
+      setErrorText(e?.message ? String(e.message) : "שגיאה בטעינת אירועים");
     } finally {
-      if (seq === reqSeq.current) setLoading(false);
+      setLoading(false);
     }
-  };
+  }, []);
+
+  const debouncedLoadRange = useMemo(() => {
+    let t: any;
+    return (start: Date, end: Date) => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        void loadRange(start, end);
+      }, 250);
+    };
+  }, [loadRange]);
+
+  const onDatesSet = useCallback(
+    (arg: DatesSetArg) => {
+      debouncedLoadRange(arg.start, arg.end);
+    },
+    [debouncedLoadRange]
+  );
 
   return (
     <Card sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -190,9 +225,7 @@ export default function CalendarCard() {
               contentHeight="100%"
               dayMaxEvents={2}
               events={events}
-              datesSet={(arg) => {
-                void loadRange(arg.start, arg.end);
-              }}
+              datesSet={onDatesSet}
               eventClick={(info) => {
                 if (info.event.url) {
                   info.jsEvent.preventDefault();

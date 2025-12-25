@@ -130,7 +130,7 @@ export default function ProjectsDonutCard() {
   return (
     <>
       <DashboardCard
-        title="פרויקטים בעבודה"
+        title="פרויקטים פעילים"
         onAdd={() => setOpen(true)}
         addLabel="הוסף פרויקט"
         onShowAll={() => navigate("/projects")}

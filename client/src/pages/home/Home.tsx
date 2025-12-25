@@ -48,9 +48,10 @@ export default function Home() {
             <LeadsCard />
           </Box>
         </Grid> */}
-        <Grid size={{ xs: 12, sm: 12, md: 12 }} sx={cellSx}>
-          <Box sx={wrapSx(H_FIRST)}>
-            <NextVisits />
+
+        <Grid size={{ xs: 12, md: 12 }} sx={cellSx}>
+          <Box sx={wrapSx(H_SECOND)}>
+            <ProjectsDonutCard />
           </Box>
         </Grid>
       </Grid>
@@ -58,15 +59,20 @@ export default function Home() {
       {/* שורה שנייה – פרויקטים + משימות + אירועים */}
       <Grid container spacing={2} alignItems="stretch">
         <Grid size={{ xs: 12, md: 6 }} sx={cellSx}>
-          <Box sx={wrapSx(H_SECOND)}>
-            <ProjectsDonutCard />
+          <Box sx={wrapSx(H_FIRST)}>
+            <NextVisits />
           </Box>
         </Grid>
         <Grid size={{ xs: 12, md: 6 }} sx={cellSx}>
-          <Box sx={wrapSx(H_SECOND)}>
+          <Box sx={wrapSx(H_FIRST)}>
             <TasksListCard />
           </Box>
         </Grid>
+        {/* <Grid size={{ xs: 12, md: 6 }} sx={cellSx}>
+          <Box sx={wrapSx(H_SECOND)}>
+            <TasksListCard />
+          </Box>
+        </Grid> */}
 
         <Grid size={{ xs: 12, md: 6 }} sx={cellSx}>
           <Box sx={wrapSx(H_SECOND)}>

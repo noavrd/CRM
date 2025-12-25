@@ -14,11 +14,19 @@ import { api } from "@/api/http";
 
 type SearchKind = "project" | "task" | "visit" | "event";
 
+type Snippet = {
+  fieldLabel: string;
+  before: string;
+  match: string;
+  after: string;
+};
+
 type SearchOption = {
   kind: SearchKind;
   id: string;
   label: string;
   secondary?: string;
+  snippet?: Snippet | null;
   to: string; // לאן לנווט
 };
 
@@ -51,6 +59,42 @@ function norm(x: any) {
     .trim();
 }
 
+function findSnippet(
+  query: string,
+  parts: Array<{ label: string; text: string }>
+) {
+  const q = norm(query);
+  if (!q) return null;
+
+  for (const p of parts) {
+    const t = String(p.text ?? "");
+    const hay = t.toLowerCase();
+    const idx = hay.indexOf(q);
+    if (idx === -1) continue;
+
+    // חותכים סביב ההתאמה כדי להציג "…"
+    const PAD = 18;
+    const start = Math.max(0, idx - PAD);
+    const end = Math.min(t.length, idx + q.length + PAD);
+
+    const prefix = start > 0 ? "…" : "";
+    const suffix = end < t.length ? "…" : "";
+
+    const before = t.slice(start, idx);
+    const match = t.slice(idx, idx + q.length);
+    const after = t.slice(idx + q.length, end);
+
+    return {
+      fieldLabel: p.label,
+      before: prefix + before,
+      match,
+      after: after + suffix,
+    };
+  }
+
+  return null;
+}
+
 function useDebouncedValue<T>(value: T, ms: number) {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -64,7 +108,7 @@ export default function GlobalSearch() {
   const navigate = useNavigate();
 
   const [input, setInput] = useState("");
-  const q = useDebouncedValue(input, 250);
+  const q = useDebouncedValue(input, 800);
 
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -74,17 +118,22 @@ export default function GlobalSearch() {
   const [visits, setVisits] = useState<UpcomingVisit[]>([]);
 
   useEffect(() => {
+    let cancelled = false;
+
     const run = async () => {
       const s = q.trim();
       if (s.length < 2) {
-        setProjects([]);
-        setTasks([]);
-        setVisits([]);
-        setLoading(false);
+        if (!cancelled) {
+          setProjects([]);
+          setTasks([]);
+          setVisits([]);
+          setLoading(false);
+        }
         return;
       }
 
-      setLoading(true);
+      if (!cancelled) setLoading(true);
+
       try {
         const [p, t, v] = await Promise.all([
           api<Project[]>("/api/projects"),
@@ -94,15 +143,23 @@ export default function GlobalSearch() {
             .catch(() => []),
         ]);
 
+        if (cancelled) return;
+
         setProjects(Array.isArray(p) ? p : []);
         setTasks(Array.isArray(t) ? (t as any) : []);
         setVisits(Array.isArray(v) ? v : []);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
-    run().catch(() => setLoading(false));
+    run().catch(() => {
+      if (!cancelled) setLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [q]);
 
   const options: SearchOption[] = useMemo(() => {
@@ -122,28 +179,52 @@ export default function GlobalSearch() {
         );
       })
       .slice(0, 8)
-      .map((p) => ({
-        kind: "project",
-        id: p.id,
-        label: p.name || "פרויקט ללא שם",
-        secondary: `${p.customer?.name ?? ""} · ${p.address?.street ?? ""} ${
-          p.address?.number ?? ""
-        } ${p.address?.city ?? ""}`.trim(),
-        to: `/projects/${p.id}`,
-      }));
+      .map((p) => {
+        const addr = `${p.address?.street ?? ""} ${p.address?.number ?? ""} ${
+          p.address?.city ?? ""
+        }`.trim();
+
+        const parts = [
+          { label: "שם פרויקט", text: p.name ?? "" },
+          { label: "שם לקוח", text: p.customer?.name ?? "" },
+          { label: "טלפון", text: p.customer?.phone ?? "" },
+          { label: "כתובת", text: addr },
+        ];
+
+        const snippet = findSnippet(q, parts);
+
+        return {
+          kind: "project",
+          id: p.id,
+          label: p.name || "פרויקט ללא שם",
+          secondary: `${p.customer?.name ?? ""} · ${addr}`.trim(),
+          snippet,
+          to: `/projects/${p.id}`,
+        };
+      });
 
     const taskHits: SearchOption[] = tasks
       .filter(
         (t) => norm(t.title).includes(s) || norm(t.description).includes(s)
       )
       .slice(0, 8)
-      .map((t) => ({
-        kind: "task",
-        id: t.id,
-        label: t.title || "משימה ללא כותרת",
-        secondary: t.description || "",
-        to: `/tasks/${t.id}`,
-      }));
+      .map((t) => {
+        const parts = [
+          { label: "כותרת", text: t.title ?? "" },
+          { label: "תיאור", text: t.description ?? "" },
+        ];
+
+        const snippet = findSnippet(q, parts);
+
+        return {
+          kind: "task",
+          id: t.id,
+          label: t.title || "משימה ללא כותרת",
+          secondary: t.description || "",
+          snippet,
+          to: `/tasks/${t.id}`,
+        };
+      });
 
     const visitHits: SearchOption[] = visits
       .filter(
@@ -151,13 +232,23 @@ export default function GlobalSearch() {
           norm(v.projectName).includes(s) || norm(v.addressText).includes(s)
       )
       .slice(0, 8)
-      .map((v) => ({
-        kind: "visit",
-        id: v.id,
-        label: v.projectName ? `ביקור · ${v.projectName}` : "ביקור",
-        secondary: v.addressText ?? "",
-        to: `/projects/${v.projectId}`,
-      }));
+      .map((v) => {
+        const parts = [
+          { label: "שם פרויקט", text: v.projectName ?? "" },
+          { label: "כתובת", text: v.addressText ?? "" },
+        ];
+
+        const snippet = findSnippet(q, parts);
+
+        return {
+          kind: "visit",
+          id: v.id,
+          label: v.projectName ? `ביקור · ${v.projectName}` : "ביקור",
+          secondary: v.addressText ?? "",
+          snippet,
+          to: `/projects/${v.projectId}`,
+        };
+      });
 
     // סדר: פרויקטים, משימות, ביקורים
     return [...projectHits, ...taskHits, ...visitHits];
@@ -234,6 +325,22 @@ export default function GlobalSearch() {
               {opt.secondary ? (
                 <Typography variant="body2" color="text.secondary" noWrap>
                   {opt.secondary}
+                </Typography>
+              ) : null}
+              {opt.snippet ? (
+                <Typography
+                  variant="body2"
+                  sx={{ mt: 0.25, opacity: 0.85 }}
+                  noWrap
+                >
+                  {opt.snippet.fieldLabel}: {opt.snippet.before}
+                  <Box
+                    component="span"
+                    sx={{ fontWeight: 900, textDecoration: "underline" }}
+                  >
+                    {opt.snippet.match}
+                  </Box>
+                  {opt.snippet.after}
                 </Typography>
               ) : null}
             </Box>
