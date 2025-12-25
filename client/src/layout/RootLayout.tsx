@@ -38,6 +38,10 @@ import * as React from "react";
 import { useRef, useEffect, useMemo } from "react";
 import { api } from "@/api/http";
 import GlobalSearch from "@/components/GlobalSearch";
+import SearchIcon from "@mui/icons-material/Search";
+import CloseIcon from "@mui/icons-material/Close";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
 
 const DRAWER_WIDTH = 260;
 
@@ -49,6 +53,10 @@ type NavItem = {
 };
 
 export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
+  const [searchOpen, setSearchOpen] = React.useState(false);
+  const openSearch = () => setSearchOpen(true);
+  const closeSearch = () => setSearchOpen(false);
+
   const auth = getAuth();
   const user = auth.currentUser;
 
@@ -165,21 +173,34 @@ export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
         <Toolbar
           sx={{
             minHeight: 64,
-            px: { xs: 2, sm: 3 },
+            px: { xs: 1.5, sm: 3 },
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
-            gap: 1.5,
+            gap: 1,
           }}
         >
-          {/* שמאל: כפתור תפריט + כפתור brand עם חץ/דרופדאון */}
-          <Stack direction="row" alignItems="center" spacing={1}>
+          {/* ימין: Brand */}
+          <Box
+            sx={{
+              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+            }}
+          >
             <Button
               size="large"
               variant="contained"
               onClick={openBrandMenu}
               endIcon={<ArrowDropDownIcon />}
-              sx={{ fontWeight: 800, letterSpacing: 0.2, borderRadius: 2 }}
+              sx={{
+                fontWeight: 800,
+                borderRadius: 2,
+                whiteSpace: "nowrap",
+                maxWidth: { xs: 210, sm: "none" },
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
             >
               שמאות מקרקעין למקצוענים
             </Button>
@@ -201,50 +222,69 @@ export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
                   </MenuItem>
                 ))}
             </Menu>
-          </Stack>
-
-          <Box
-            sx={{ flex: 1, display: "flex", justifyContent: "center", px: 2 }}
-          >
-            <GlobalSearch />
           </Box>
 
-          {/* ימין: אווטאר + טוגל תמה */}
-          <Stack direction="row" alignItems="center" spacing={1.25}>
-            <ThemeToggle onToggle={toggleMode} />
+          {/* אמצע: חיפוש (רק מ-sm ומעלה) */}
+          <Box
+            sx={{
+              flex: "1 1 auto",
+              minWidth: 0,
+              display: { xs: "none", sm: "flex" },
+              justifyContent: "center",
+              px: 2,
+            }}
+          >
+            <Box sx={{ width: "100%", maxWidth: { sm: 520, md: 640 } }}>
+              <GlobalSearch />
+            </Box>
+          </Box>
+
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={1}
+            sx={{ flexShrink: 0, ml: { xs: "auto", sm: 0 } }}
+          >
+            <IconButton
+              onClick={openSearch}
+              sx={{ display: { xs: "inline-flex", sm: "none" } }}
+              aria-label="חיפוש"
+            >
+              <SearchIcon />
+            </IconButton>
+
+            <Box sx={{ display: { xs: "none", sm: "block" } }}>
+              <ThemeToggle onToggle={toggleMode} />
+            </Box>
 
             <ButtonBase
               onClick={handleUserMenuOpen}
-              aria-haspopup="menu"
-              aria-controls={userMenuOpen ? "user-menu" : undefined}
-              aria-expanded={userMenuOpen ? "true" : undefined}
               sx={{
                 borderRadius: 2,
-                px: 1,
-                py: 0.5,
+                px: { xs: 0.75, sm: 1 },
+                py: { xs: 0.75, sm: 0.5 },
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 1,
-                "&:hover": (t) => ({ backgroundColor: t.palette.action.hover }),
-                "&:focus-visible": (t) => ({
-                  outline: `2px solid ${t.palette.primary.main}`,
-                  outlineOffset: 2,
-                }),
               }}
             >
               <Avatar
                 src={photoURL || undefined}
                 alt={firstName}
                 sx={{
-                  width: 34,
-                  height: 34,
+                  width: { xs: 38, sm: 34 },
+                  height: { xs: 38, sm: 34 },
                   bgcolor: (t) => t.palette.primary.main,
                 }}
               >
                 {!photoURL ? <PersonOutlineIcon /> : null}
               </Avatar>
 
-              <Typography variant="subtitle1" noWrap sx={{ fontWeight: 700 }}>
+              <Typography
+                variant="subtitle1"
+                noWrap
+                sx={{ fontWeight: 700, display: { xs: "none", sm: "block" } }}
+              >
                 {firstName}
               </Typography>
 
@@ -256,18 +296,70 @@ export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
               anchorEl={anchorEl}
               open={userMenuOpen}
               onClose={handleUserMenuClose}
-              anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-              transformOrigin={{ vertical: "top", horizontal: "right" }}
+              anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+              transformOrigin={{ vertical: "top", horizontal: "left" }}
               PaperProps={{ sx: { mt: 1, minWidth: 160 } }}
             >
+              <MenuItem
+                sx={{ display: { xs: "flex", sm: "none" } }}
+                onClick={() => handleUserMenuClose()}
+              >
+                <ThemeToggle onToggle={toggleMode} />{" "}
+              </MenuItem>
+
+              <Divider sx={{ display: { xs: "block", sm: "none" } }} />
               <MenuItem onClick={handleLogout}>התנתקות</MenuItem>
             </Menu>
           </Stack>
         </Toolbar>
       </AppBar>
 
-      {/* תוכן – תמיד מרכזי, לא זז */}
-      <Container maxWidth="md" sx={{ py: 6 }}>
+      <Dialog
+        open={searchOpen}
+        onClose={closeSearch}
+        fullScreen
+        PaperProps={{ sx: { bgcolor: "background.default" } }}
+        sx={{ display: { xs: "block", sm: "none" } }}
+      >
+        <AppBar position="sticky" elevation={0}>
+          <Toolbar
+            sx={{
+              minHeight: 64,
+              px: { xs: 1.5, sm: 3 },
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1,
+            }}
+          >
+            <IconButton onClick={closeSearch} aria-label="סגירה">
+              <CloseIcon />
+            </IconButton>
+
+            <Typography sx={{ flex: 1, fontWeight: 800 }} noWrap>
+              חיפוש
+            </Typography>
+          </Toolbar>
+        </AppBar>
+
+        <DialogContent sx={{ pt: 2 }}>
+          <Box sx={{ width: "100%" }}>
+            <GlobalSearch />
+          </Box>
+
+          <Box sx={{ mt: 2, color: "text.secondary", fontSize: 14 }}></Box>
+        </DialogContent>
+      </Dialog>
+
+      <Container
+        maxWidth={false}
+        disableGutters
+        sx={{
+          width: "100%",
+          py: { xs: 2, md: 4 },
+          px: { xs: 1.5, sm: 2, md: 3 },
+        }}
+      >
         <Outlet />
       </Container>
     </Box>
