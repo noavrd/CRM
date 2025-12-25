@@ -34,11 +34,6 @@ export default function Home() {
     },
   });
 
-  const dbg = api("/api/google/calendar/debug").then(console.log);
-  console.log("gcal debug:", dbg);
-  api("/api/google/calendar/whoami").then(console.log);
-  api("/api/google/calendar/debug").then(console.log);
-
   return (
     <Box>
       <Grid container spacing={2} sx={{ mb: 2 }} alignItems="stretch">

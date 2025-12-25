@@ -15,6 +15,8 @@ import {
   Typography,
   Switch,
   FormControlLabel,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
@@ -91,6 +93,9 @@ export default function CreateProjectDialog({
   const [errors, setErrors] = useState<FormErrors>({});
   const [form, setForm] = useState<ProjectForm>(mergeProjectForm(initial));
   const [step, setStep] = useState<StepKey>("customer");
+
+  const theme = useTheme();
+  const isPhone = useMediaQuery(theme.breakpoints.down("sm"));
 
   const isValidEmail = (v: string) => {
     const s = v.trim();
@@ -205,6 +210,7 @@ export default function CreateProjectDialog({
       onClose={close}
       fullWidth
       maxWidth="md"
+      fullScreen={isPhone}
       onKeyDown={(e) => {
         if (e.key === "Enter" && step === steps[steps.length - 1].key) {
           e.preventDefault();

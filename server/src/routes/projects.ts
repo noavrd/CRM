@@ -6,8 +6,10 @@ import {
   upsertGoogleCalendarEvent,
   deleteGoogleCalendarEvent,
 } from "../lib/googleCalendar";
+import { TTLCache } from "../utils/ttlCache";
 
 const router = Router();
+const projectsCache = new TTLCache<any>(15_000);
 
 /* ---------- helpers ---------- */
 function normalizePayments(
@@ -149,42 +151,47 @@ const isValidStatus = (s: any): s is ProjectStatus =>
 router.get("/stats", async (req, res) => {
   try {
     const userId = (req as any).userId as string;
+    const cacheKey = `projects:stats:${userId}`;
 
-    // מציגים רק פרויקטים לא בארכיון בדשבורד
-    const snap = await adminDb
-      .collection("projects")
-      .where("userId", "==", userId)
-      .where("archived", "==", false)
-      .get();
+    const result = await projectsCache.getOrCompute(cacheKey, async () => {
+      const snap = await adminDb
+        .collection("projects")
+        .where("userId", "==", userId)
+        .get();
 
-    // התחלה ב-0 לכל סטטוס
-    const counts: Record<ProjectStatus, number> = {
-      quote: 0,
-      pre_visit: 0,
-      post_visit: 0,
-      in_work: 0,
-      review: 0,
-      done: 0,
-    };
+      const counts: Record<ProjectStatus, number> = {
+        quote: 0,
+        pre_visit: 0,
+        post_visit: 0,
+        in_work: 0,
+        review: 0,
+        done: 0,
+      };
 
-    snap.forEach((d) => {
-      // status החדש (מחייב להיות אחד מה-6)
-      const s = d.get("status");
-      if (isValidStatus(s)) {
-        counts[s] += 1;
-        return;
-      }
+      snap.forEach((d) => {
+        // ✅ מסננים ארכיון נכון: רק אם archived === true
+        if (d.get("archived") === true) return;
 
-      // תאימות לאחור: אם נשמר פעם "stage"
-      const legacy = d.get("stage"); // "pre_visit" | "post_visit"
-      if (legacy === "pre_visit") counts.pre_visit += 1;
-      if (legacy === "post_visit") counts.post_visit += 1;
+        const s = d.get("status");
+        if (isValidStatus(s)) {
+          counts[s] += 1;
+          return;
+        }
+
+        const legacy = d.get("stage");
+        if (legacy === "pre_visit") counts.pre_visit += 1;
+        if (legacy === "post_visit") counts.post_visit += 1;
+      });
+
+      const total = STATUS_VALUES.reduce((acc, k) => acc + counts[k], 0);
+      return { total, ...counts };
     });
 
-    const total = STATUS_VALUES.reduce((acc, k) => acc + counts[k], 0);
-    res.json({ total, ...counts });
+    // ✅ חשוב: לא לעטוף ב-{ result } כדי שהקליינט יקבל את השדות ישר
+    return res.json(result);
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error("GET /api/projects/stats error:", e);
+    return res.status(500).json({ error: e?.message ?? "unknown error" });
   }
 });
 
@@ -194,70 +201,73 @@ router.get("/", async (req, res) => {
     const userId = (req as any).userId as string;
     const status = req.query.status as string | undefined;
 
-    const base = adminDb.collection("projects").where("userId", "==", userId);
+    const cacheKey = `projects:list:${userId}:${status ?? "all"}`;
 
-    // 1. אין status → מחזירים את כל הפרויקטים של המשתמש, ממוינים בקוד
-    if (!status || !isValidStatus(status)) {
-      const snap = await base.get(); // ← בלי orderBy / limit
+    const items = await projectsCache.getOrCompute(cacheKey, async () => {
+      const base = adminDb.collection("projects").where("userId", "==", userId);
 
-      let items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      // 1) אין status
+      if (!status || !isValidStatus(status)) {
+        const snap = await base.get();
 
-      // מיון בצד השרת לפי createdAt (Firestore Timestamp)
-      items = items.sort((a: any, b: any) => {
-        const aTs = a.createdAt;
-        const bTs = b.createdAt;
+        let items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-        const aMs =
-          aTs && typeof aTs.toMillis === "function" ? aTs.toMillis() : 0;
-        const bMs =
-          bTs && typeof bTs.toMillis === "function" ? bTs.toMillis() : 0;
+        items = items.sort((a: any, b: any) => {
+          const aTs = a.createdAt;
+          const bTs = b.createdAt;
+          const aMs =
+            aTs && typeof aTs.toMillis === "function" ? aTs.toMillis() : 0;
+          const bMs =
+            bTs && typeof bTs.toMillis === "function" ? bTs.toMillis() : 0;
+          return bMs - aMs;
+        });
 
-        return bMs - aMs; // חדש קודם
-      });
+        return items; // ✅ לא res.json
+      }
 
-      return res.json(items);
-    }
+      // 2) יש status תקין
+      const snaps: FirebaseFirestore.QuerySnapshot[] = [];
+      snaps.push(await base.where("status", "==", status).get());
 
-    // 2. יש status תקין → מביאות לפי status ו-stage (לתאימות לאחור)
-    const snaps: FirebaseFirestore.QuerySnapshot[] = [];
+      if (status === "pre_visit" || status === "post_visit") {
+        snaps.push(await base.where("stage", "==", status).get());
+      }
 
-    // שדה status החדש
-    snaps.push(await base.where("status", "==", status).get());
-
-    // תאימות לאחור ל-pre_visit / post_visit לפי stage
-    if (status === "pre_visit" || status === "post_visit") {
-      snaps.push(await base.where("stage", "==", status).get());
-    }
-
-    const seen = new Set<string>();
-    let items = snaps.flatMap(
-      (snap) =>
+      const seen = new Set<string>();
+      let items = snaps.flatMap((snap) =>
         snap.docs
           .map((d) => {
             if (seen.has(d.id)) return null;
             seen.add(d.id);
             return { id: d.id, ...d.data() };
           })
-          .filter(Boolean) as any[]
-    );
+          .filter(Boolean)
+      ) as any[];
 
-    // גם כאן מיון לפי createdAt אם קיים
-    items = items.sort((a: any, b: any) => {
-      const aTs = a.createdAt;
-      const bTs = b.createdAt;
+      items = items.sort((a: any, b: any) => {
+        const aTs = a.createdAt;
+        const bTs = b.createdAt;
+        const aMs =
+          aTs && typeof aTs.toMillis === "function" ? aTs.toMillis() : 0;
+        const bMs =
+          bTs && typeof bTs.toMillis === "function" ? bTs.toMillis() : 0;
+        return bMs - aMs;
+      });
 
-      const aMs =
-        aTs && typeof aTs.toMillis === "function" ? aTs.toMillis() : 0;
-      const bMs =
-        bTs && typeof bTs.toMillis === "function" ? bTs.toMillis() : 0;
-
-      return bMs - aMs;
+      return items;
     });
 
-    res.json(items);
+    return res.json(items);
   } catch (e: any) {
     console.error("GET /api/projects error:", e);
-    res.status(500).json({ error: e.message });
+    return res.status(500).json({
+      error: {
+        message: e?.message ?? String(e),
+        name: e?.name,
+        code: e?.code,
+        stack: e?.stack,
+      },
+    });
   }
 });
 
@@ -485,7 +495,7 @@ router.post("/", async (req, res) => {
         }
       }
     }
-
+    projectsCache.clear();
     return res.json({
       id: projectRef.id,
       visitId: createdVisitId,
@@ -829,6 +839,7 @@ router.put("/:id", async (req, res) => {
       };
     }
 
+    projectsCache.clear();
     return res.json({
       ok: true,
       visitId: state.finalVisitId,
@@ -838,22 +849,6 @@ router.put("/:id", async (req, res) => {
     console.error("[projects.put] error:", e);
     const status = e?.status ?? 500;
     return res.status(status).json({ error: e?.message ?? "unknown error" });
-  }
-});
-
-/* ---------- POST /api/projects/:id/archive (ארכוב) ---------- */
-router.post("/:id/archive", async (req, res) => {
-  try {
-    const userId = (req as any).userId as string;
-    const ref = adminDb.collection("projects").doc(req.params.id);
-    const doc = await ref.get();
-    if (!doc.exists || doc.get("userId") !== userId) {
-      return res.status(404).json({ error: "not found" });
-    }
-    await ref.update({ archived: true, updatedAt: Timestamp.now() });
-    res.json({ ok: true });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
   }
 });
 
