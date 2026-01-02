@@ -85,6 +85,20 @@ Create:
 Where to find Firebase Web config?
 Firebase Console → Project settings → General → "Your apps" → Web app config.
 
+# 2C) .gitignore
+
+Create .gitinore file in the root folder
+./gitignore
+
+```.gitignore
+  /client/node_modules
+  /client/.env.local
+  /server/node_modules
+  /server/.env
+  /server/serviceAccountKey.json
+```
+
+
 # 3) Google Calendar integration
 If you want Calendar syncing:
 
@@ -140,4 +154,5 @@ Server should run on:
 Client runs on:
 
 `http://localhost:3000`
+
 
