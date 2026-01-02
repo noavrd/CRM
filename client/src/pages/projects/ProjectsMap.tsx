@@ -13,6 +13,7 @@ import {
   type ProjectStatus,
   statusLabel,
 } from "@/lib/projectStatus";
+import { useNavigate } from "react-router-dom";
 
 export type ProjectMapItem = {
   id: string;
@@ -89,9 +90,9 @@ export function ProjectsMap({
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
   const hasKey = Boolean(apiKey);
 
+  const navigate = useNavigate();
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: apiKey || "",
-    // בשביל DirectionsRenderer לא צריך libraries מיוחדים
   });
 
   const filteredItems = useMemo(() => {
@@ -151,17 +152,15 @@ export function ProjectsMap({
 
   useEffect(() => {
     loadProjects();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     const handler = () => loadProjects();
     window.addEventListener("projects:changed", handler);
     return () => window.removeEventListener("projects:changed", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // fit bounds לפי סינון
+  //filter by fit bounds
   useEffect(() => {
     if (!map) return;
 
@@ -225,7 +224,6 @@ export function ProjectsMap({
         <Box
           sx={{
             height: "100%",
-            // continue: "100%",
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
@@ -293,6 +291,16 @@ export function ProjectsMap({
                     <div>סטטוס: {statusLabel(p.status)}</div>
                     {p.customer?.name && <div>לקוח/ה: {p.customer.name}</div>}
                     {formatAddress(p) && <div>{formatAddress(p)}</div>}
+                    <a
+                      href={`/projects/${p.id}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigate(`/projects/${p.id}`);
+                      }}
+                      style={{ display: "inline-block", marginTop: 8 }}
+                    >
+                      פרטים מלאים
+                    </a>
                   </div>
                 </InfoWindowF>
               ) : null

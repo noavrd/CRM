@@ -16,7 +16,6 @@ export function KV({
         {label}
       </Typography>
 
-      {/* ✅ לא p כדי ש-Chip/Box/Div יהיו חוקיים */}
       <Typography component="div" sx={{ direction: valueDir }}>
         {value ?? "-"}
       </Typography>

@@ -25,7 +25,7 @@ function statusChip(status?: string) {
       label={meta?.label ?? String(status ?? "-")}
       color={meta?.color ?? "default"}
       variant={status === "in-progress" ? "outlined" : "filled"}
-      sx={{ ml: 1 }} // קצת מרווח מהכותרת
+      sx={{ ml: 1 }}
     />
   );
 }
@@ -59,7 +59,7 @@ export default function TaskDetailsPage() {
   return (
     <DetailsShell
       title={task?.title ? `משימה: ${task.title}` : "פרטי משימה"}
-      titleAdornment={task ? statusChip((task as any).status) : null} // ✅ כאן הסטטוס ליד הכותרת
+      titleAdornment={task ? statusChip((task as any).status) : null}
       loading={loading}
       errorText={err}
       onBack={() => navigate(-1)}
@@ -71,7 +71,7 @@ export default function TaskDetailsPage() {
               <KV label="יעד" value={(task as any).dueDate ?? "-"} />
             </Col>
             <Col>
-              <KV label="אחראית" value={(task as any).assignee ?? "-"} />
+              <KV label="שמאי אחראי" value={(task as any).assignee ?? "-"} />
             </Col>
             <Col>
               <KV

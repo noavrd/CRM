@@ -37,7 +37,7 @@ export default function ProjectsPage() {
   const { success, error } = useSnackbar();
   const navigate = useNavigate();
 
-  // ---- טוען פרויקטים ----
+  // load projects
   const load = async () => {
     try {
       const res = await api<Project[]>("/api/projects");
@@ -52,7 +52,6 @@ export default function ProjectsPage() {
     load();
   }, []);
 
-  // ---- פונקציית עיצוב כתובת ----
   const formatAddress = (r: Project) => {
     if (!r.address) return "-";
 
@@ -69,7 +68,6 @@ export default function ProjectsPage() {
     return parts.join(", ");
   };
 
-  // ---- סינון ----
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
 
@@ -95,8 +93,13 @@ export default function ProjectsPage() {
     });
   }, [rows, q, statusFilter]);
 
-  // ---- עמודות ----
+  // table columns
   const cols: Column<Project>[] = [
+    {
+      id: "serialNo",
+      header: "מספר סידורי",
+      render: (r) => (r.serialNo ? String(r.serialNo) : "—"),
+    },
     { id: "name", header: "שם פרויקט", render: (r) => r.name || "-" },
 
     { id: "cust", header: "לקוח/ה", render: (r) => r.customer?.name || "-" },
@@ -120,7 +123,6 @@ export default function ProjectsPage() {
     },
   ];
 
-  // ---- המרה Project -> ProjectForm לעריכה ----
   const projectToForm = (p: Project): ProjectForm => {
     return {
       ...defaultProjectForm,
@@ -184,7 +186,7 @@ export default function ProjectsPage() {
     }
   };
 
-  // ---- אקשנים לכל שורה ----
+  // 3 dots menu
   const rowActions = (row: Project): RowAction<Project>[] => [
     {
       label: "צפייה בפרטים מלאים",
@@ -198,7 +200,6 @@ export default function ProjectsPage() {
     },
   ];
 
-  // ---- רינדור ----
   return (
     <>
       <TableShell
@@ -212,7 +213,7 @@ export default function ProjectsPage() {
               gap: 1,
             }}
           >
-            {/* חיפוש */}
+            {/* search */}
             <TextField
               size="small"
               placeholder="חיפוש..."
@@ -221,7 +222,7 @@ export default function ProjectsPage() {
               sx={{ minWidth: 220 }}
             />
 
-            {/* סטטוס */}
+            {/* status */}
             <FormControl size="small" sx={{ minWidth: 160 }}>
               <InputLabel id="status-filter-label">סטטוס</InputLabel>
               <Select

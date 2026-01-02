@@ -5,10 +5,10 @@ const router = Router();
 
 const GOOGLE_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 if (!GOOGLE_API_KEY) {
-  console.warn("⚠️ Missing GOOGLE_MAPS_API_KEY env – Google Places won't work");
+  console.warn("Missing GOOGLE_MAPS_API_KEY env – Google Places won't work");
 }
 
-/** שולף עיר/רחוב/מספר מה address_components */
+// gets city, street, number from component
 function pickAddressFromComponents(components: any[]) {
   const get = (type: string) =>
     components.find((c) => c.types?.includes(type))?.long_name ?? "";
@@ -24,10 +24,7 @@ function pickAddressFromComponents(components: any[]) {
   return { city, street, houseNumber };
 }
 
-/**
- * GET /api/places/autocomplete?q=...
- * מחזיר הצעות כתובת (עיר+רחוב+מספר) בישראל בלבד
- */
+// GET /api/places/autocomplete?q=... return addresses in israel
 router.get("/autocomplete", async (req, res) => {
   try {
     const q = (req.query.q as string | undefined)?.trim();
@@ -72,10 +69,7 @@ router.get("/autocomplete", async (req, res) => {
   }
 });
 
-/**
- * GET /api/places/details?placeId=...
- * מחזיר כתובת מפורקת + קואורדינטות
- */
+//GET /api/places/details?placeId=... gets address details + cordinates
 router.get("/details", async (req, res) => {
   try {
     const placeId = req.query.placeId as string | undefined;

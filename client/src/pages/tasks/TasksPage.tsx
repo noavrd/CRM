@@ -16,7 +16,7 @@ import type {
   ProjectOption,
 } from "../types";
 import CreateTaskDialog from "./CreateTaskDialog";
-import { serverTaskToTask, taskToServerPayload } from "./mappers";
+import { serverTaskToTask } from "./mappers";
 import { useNavigate } from "react-router-dom";
 
 export default function TasksPage() {
@@ -145,7 +145,7 @@ export default function TasksPage() {
       await api(`/api/tasks/${editing.id}`, {
         method: "PUT",
         body: JSON.stringify({
-          projectId: data.projectId ? data.projectId : null, // "" => null
+          projectId: data.projectId ? data.projectId : null,
           assignee: data.assignee ?? null,
           title: data.title,
           description: data.description,

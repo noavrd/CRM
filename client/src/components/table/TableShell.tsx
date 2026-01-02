@@ -1,5 +1,3 @@
-// src/components/table/TableShell.tsx
-
 import {
   Card,
   CardHeader,
@@ -52,15 +50,15 @@ export default function TableShell<T>({
   rowActions,
 }: {
   title: ReactNode;
-  actions?: ReactNode; // כפתורי "הוספה" וכו'
-  filters?: ReactNode; // סרגל סינון/חיפוש מותאם
+  actions?: ReactNode; // add buttons and more
+  filters?: ReactNode; //filter bar
   columns: Column<T>[];
   rows: T[];
-  page?: number; // 1-based
+  page?: number; // 1-based - for now it's 1 page
   pages?: number;
   onPageChange?: (p: number) => void;
   emptyText?: string;
-  /** פונקציה ג׳נרית שמחזירה מערך פעולות לכל שורה */
+  // roe actions - for now 3 dots menu
   rowActions?: (row: T) => RowAction<T>[];
 }) {
   const [menuAnchorEl, setMenuAnchorEl] = useState<HTMLElement | null>(null);
@@ -99,7 +97,7 @@ export default function TableShell<T>({
                 ))}
                 {rowActions && (
                   <TableCell align="center" sx={{ width: 48 }}>
-                    {/* כותרת ריקה לעמודת 3 הנקודות */}
+                    {/* empty cell for the 3 dots menu*/}
                   </TableCell>
                 )}
               </TableRow>
@@ -143,7 +141,7 @@ export default function TableShell<T>({
           </Table>
         </Box>
 
-        {/* תפריט שורות ג׳נרי */}
+        {/* generic rows*/}
         {rowActions && (
           <Menu
             anchorEl={menuAnchorEl}

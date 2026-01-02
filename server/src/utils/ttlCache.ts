@@ -35,9 +35,9 @@ export class TTLCache<V> {
 
   /**
    * getOrCompute:
-   * - אם יש ערך תקף בקאש -> מחזיר מיד
-   * - אם אין, אבל כבר יש compute רץ לאותו key -> מחזיר את אותו Promise
-   * - אחרת -> מריץ compute פעם אחת, שומר בקאש ומחזיר
+   * - If there is a valid value in the cache -> returns immediately
+   * - If there is not, but there is already a running machine for the same key -> returns the same promise
+   * - Else -> runs the machine once, saves in the cache and returns
    */
   async getOrCompute(key: string, compute: () => Promise<V>): Promise<V> {
     const cached = this.get(key);

@@ -47,7 +47,7 @@ export default function CalendarCard() {
     window.open("/events", "_blank", "noopener,noreferrer");
   };
 
-  // ✅ כשעוברים לשבוע — שיתחיל מהיום (כלומר יקפוץ להיום ואז יחליף תצוגה)
+  //  when switching to week - show from today
   const goWeekFromToday = () => {
     const calApi = calendarRef.current?.getApi();
     if (!calApi) return;
@@ -74,7 +74,6 @@ export default function CalendarCard() {
     setErrorText(null);
 
     try {
-      // חשוב: מניחה שה-API מחזיר מערך של ApiEvent
       const res = await api(
         `/api/events/range?start=${encodeURIComponent(
           start.toISOString()
@@ -82,7 +81,6 @@ export default function CalendarCard() {
         { signal: ac.signal }
       );
 
-      // ✅ תמיכה גם במקרה שהשרת מחזיר { items: [...] } וגם במקרה שמחזיר [...]
       const raw = (res as any)?.items ?? res;
       const items: ApiEvent[] = Array.isArray(raw) ? raw : [];
 
@@ -174,7 +172,7 @@ export default function CalendarCard() {
                 justifyContent: "center",
               },
 
-              // הכפתור של openPage (אייקון)
+              //openPage icon
               "& .fc .fc-openPage-button": {
                 width: 36,
                 height: 36,
@@ -243,7 +241,7 @@ export default function CalendarCard() {
             />
           </Box>
 
-          {/* Overlay טעינה */}
+          {/* loading overlay */}
           {loading && (
             <Box
               sx={{
@@ -261,7 +259,7 @@ export default function CalendarCard() {
             </Box>
           )}
 
-          {/* שגיאה קטנה למטה */}
+          {/*show error*/}
           {errorText && (
             <Box
               sx={{

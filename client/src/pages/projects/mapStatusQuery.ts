@@ -14,7 +14,7 @@ export function decodeStatuses(
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean) as ProjectStatus[];
-  // ננקה ערכים לא חוקיים
+  // clean not valid values
   const allowed = new Set(PROJECT_STATUS_ORDER);
   const clean = parts.filter((s) => allowed.has(s));
   return clean.length ? clean : [...PROJECT_STATUS_ORDER];

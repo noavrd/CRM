@@ -51,7 +51,6 @@ export async function upsertGoogleCalendarEvent(params: {
 
   title: string;
 
-  // "מה שעבד": פרטי ביקור בתיאור
   addressText?: string;
   notes?: string;
   contact?: { role?: string; name?: string; phone?: string };
@@ -69,7 +68,7 @@ export async function upsertGoogleCalendarEvent(params: {
     if (t) lines.push(t);
   };
 
-  // --- description בפורמט שביקשת ---
+  // visit details in description
   pushLine("פרטי ביקור");
   const addressText = (params.addressText ?? "").trim();
   if (addressText) pushLine(`כתובת: ${addressText}`);
@@ -85,7 +84,7 @@ export async function upsertGoogleCalendarEvent(params: {
   const gmaps = params.nav?.googleMapsUrl ?? null;
   const waze = params.nav?.wazeUrl ?? null;
 
-  // כמו בדוגמה שלך: "ניווט:" ואז שורה/שורות
+  // navigate with google maps + waze
   if (gmaps || waze) {
     pushLine("ניווט:");
     if (gmaps) {
@@ -109,7 +108,7 @@ export async function upsertGoogleCalendarEvent(params: {
   const requestBody = {
     summary: params.title,
     description,
-    location: addressText || undefined, // Location ב-Google event
+    location: addressText || undefined, // Location in Google event
     start: { dateTime: params.startsAt.toISOString() },
     end: { dateTime: params.endsAt.toISOString() },
   };

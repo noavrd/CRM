@@ -4,21 +4,8 @@ import { api } from "@/api/http";
 import type { Project } from "../types";
 import { DetailsShell } from "@/components/details/DetailsShell";
 import { Col, DetailsSection, KV } from "@/components/details/DetailsBits";
-import { statusLabel, type ProjectStatus } from "@/lib/projectStatus";
+import { type ProjectStatus } from "@/lib/projectStatus";
 import ProjectStatusChip from "./ProjectStatusChip";
-
-function formatAddress(p: Project) {
-  const a: any = p.address || {};
-  const parts = [
-    a.street && a.number ? `${a.street} ${a.number}` : a.street,
-    a.city,
-    a.neighborhood && `שכונת ${a.neighborhood}`,
-    a.block ? `גוש ${a.block}` : null,
-    a.parcel ? `חלקה ${a.parcel}` : null,
-    a.subParcel ? `תת חלקה ${a.subParcel}` : null,
-  ].filter(Boolean);
-  return parts.join(", ");
-}
 
 export default function ProjectDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -59,11 +46,10 @@ export default function ProjectDetailsPage() {
       loading={loading}
       errorText={err}
       onBack={() => navigate(-1)}
-      titleAdornment={<ProjectStatusChip status={effectiveStatus} />} // סטטוס צמוד לכותרת
+      titleAdornment={<ProjectStatusChip status={effectiveStatus} />} // status near title
     >
       {!project ? null : (
         <>
-          {/* 1) פרטי לקוח */}
           <DetailsSection title="לקוח/ה">
             {(() => {
               const cust = (project.customer ?? {}) as any;
@@ -90,7 +76,6 @@ export default function ProjectDetailsPage() {
                     <KV label="עיר" value={cust.city || "-"} />
                   </Col>
 
-                  {/* הערות לקוח = description אצלך */}
                   <Col xs={12} sm={12} md={12}>
                     <KV
                       label="הערות לקוח"
@@ -102,7 +87,6 @@ export default function ProjectDetailsPage() {
             })()}
           </DetailsSection>
 
-          {/* 2) כתובת נכס */}
           <DetailsSection title="כתובת נכס">
             {(() => {
               const a = (project.address ?? {}) as any;
@@ -147,7 +131,6 @@ export default function ProjectDetailsPage() {
             })()}
           </DetailsSection>
 
-          {/* 3) פרטי נכס */}
           <DetailsSection title="פרטי נכס">
             {(() => {
               const asset = ((project as any).asset ?? {}) as any;
@@ -208,7 +191,6 @@ export default function ProjectDetailsPage() {
             })()}
           </DetailsSection>
 
-          {/* 4) תיאום ביקור בנכס */}
           <DetailsSection title="תיאום ביקור בנכס">
             {(() => {
               const v = ((project as any).visit ?? {}) as any;
@@ -250,7 +232,6 @@ export default function ProjectDetailsPage() {
             })()}
           </DetailsSection>
 
-          {/* 5) תשלום והערות */}
           <DetailsSection title="תשלום והערות">
             {(() => {
               const payments = Array.isArray((project as any).payments)

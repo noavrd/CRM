@@ -30,7 +30,6 @@ export default function EventsPage() {
         timeZone="Asia/Jerusalem"
         events={events}
         datesSet={async (arg) => {
-          // arg.start / arg.end הם Date של הטווח הנוכחי
           const items = await api<ApiEvent[]>(
             `/api/events/range?start=${encodeURIComponent(
               arg.start.toISOString()
@@ -43,12 +42,12 @@ export default function EventsPage() {
               title: e.title,
               start: e.startsAt ?? undefined,
               end: e.endsAt ?? undefined,
-              url: e.htmlLink ?? undefined, // לחיצה תפתח בגוגל קלנדר
+              url: e.htmlLink ?? undefined, //on click opens in google calender
             }))
           );
         }}
         eventClick={(info) => {
-          // אם יש url – תפתח בכרטיסיה חדשה
+          // open in new tab
           if (info.event.url) {
             info.jsEvent.preventDefault();
             window.open(info.event.url, "_blank", "noopener,noreferrer");

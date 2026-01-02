@@ -16,7 +16,6 @@ router.get("/", async (req, res) => {
       .where("userId", "==", userId)
       .get();
 
-    // בונים מערך גולמי
     const items = snap.docs.map((d) => {
       const data = d.data();
       const dueTs = (data.dueDate as Timestamp | null | undefined) ?? null;
@@ -27,12 +26,11 @@ router.get("/", async (req, res) => {
         description: data.description ?? "",
         title: data.title ?? "",
         status: data.status ?? "todo",
-        // נחזיר כ-YYYY-MM-DD כדי לשמור עקביות עם ה-FE
+        // to work with FE
         dueDate: dueTs ? dueTs.toDate().toISOString().slice(0, 10) : null,
       };
     });
 
-    // מיון בזיכרון: תאריכים קודם, null בסוף
     items.sort((a, b) => {
       if (!a.dueDate && !b.dueDate) return 0;
       if (!a.dueDate) return 1;
@@ -72,7 +70,6 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "description is required" });
     }
 
-    // מצפות ל-YYYY-MM-DD או ISO מלא; new Date() יטפל בשניהם
     const dueTs = dueDate ? Timestamp.fromDate(new Date(dueDate)) : null;
 
     const ref = await adminDb.collection("tasks").add({
@@ -178,7 +175,7 @@ router.get("/:id", async (req, res) => {
     return res.json({
       id: doc.id,
       projectId: data.projectId ?? "",
-      projectName, // ✅ חדש
+      projectName,
       assignee: data.assignee ?? null,
       description: data.description ?? "",
       title: data.title ?? "",

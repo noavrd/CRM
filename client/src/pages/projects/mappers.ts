@@ -1,4 +1,3 @@
-// src/features/projects/mappers.ts
 import type { Project, ProjectForm } from "../types";
 import { defaultProjectForm } from "../defaultValues";
 import { type ProjectStatus } from "@/lib/projectStatus";
@@ -18,7 +17,6 @@ export function projectToForm(p: Project): ProjectForm {
     address: {
       ...defaultProjectForm.address,
       ...(p.address ?? {}),
-      // אם ב-Firestore שמרת lat/lng – הם ייכנסו גם
       lat: p.address?.lat,
       lng: p.address?.lng,
     },

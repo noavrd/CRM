@@ -106,7 +106,6 @@ function finiteOrNull(x: any): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-// מסיר undefined עמוק (רק undefined! לא מוחק null/""/0)
 function stripUndefinedDeep<T>(obj: T): T {
   if (Array.isArray(obj)) {
     return obj.map(stripUndefinedDeep) as any;
@@ -134,7 +133,7 @@ function toLocalTimeInput(d: Date) {
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
-// סטטוסים מותרים (Single Source of Truth – תואם למה שבקליינט)
+// status like in the FE
 const STATUS_VALUES = [
   "quote",
   "pre_visit",
@@ -147,7 +146,7 @@ type ProjectStatus = (typeof STATUS_VALUES)[number];
 const isValidStatus = (s: any): s is ProjectStatus =>
   typeof s === "string" && STATUS_VALUES.includes(s as ProjectStatus);
 
-/* ---------- GET /api/projects/stats (לדשבורד) ---------- */
+// GET /api/projects/stats - get statistics for dashboard
 router.get("/stats", async (req, res) => {
   try {
     const userId = (req as any).userId as string;
@@ -169,7 +168,7 @@ router.get("/stats", async (req, res) => {
       };
 
       snap.forEach((d) => {
-        // ✅ מסננים ארכיון נכון: רק אם archived === true
+        // if we do archive don't show it
         if (d.get("archived") === true) return;
 
         const s = d.get("status");
@@ -187,7 +186,6 @@ router.get("/stats", async (req, res) => {
       return { total, ...counts };
     });
 
-    // ✅ חשוב: לא לעטוף ב-{ result } כדי שהקליינט יקבל את השדות ישר
     return res.json(result);
   } catch (e: any) {
     console.error("GET /api/projects/stats error:", e);
@@ -195,7 +193,7 @@ router.get("/stats", async (req, res) => {
   }
 });
 
-// GET /api/projects?status=pre_visit
+// GET /api/projects?status=pre_visit - default pre_visit
 router.get("/", async (req, res) => {
   try {
     const userId = (req as any).userId as string;
@@ -206,7 +204,6 @@ router.get("/", async (req, res) => {
     const items = await projectsCache.getOrCompute(cacheKey, async () => {
       const base = adminDb.collection("projects").where("userId", "==", userId);
 
-      // 1) אין status
       if (!status || !isValidStatus(status)) {
         const snap = await base.get();
 
@@ -222,10 +219,9 @@ router.get("/", async (req, res) => {
           return bMs - aMs;
         });
 
-        return items; // ✅ לא res.json
+        return items;
       }
 
-      // 2) יש status תקין
       const snaps: FirebaseFirestore.QuerySnapshot[] = [];
       snaps.push(await base.where("status", "==", status).get());
 
@@ -271,8 +267,8 @@ router.get("/", async (req, res) => {
   }
 });
 
-/* ---------- POST /api/projects (יצירת פרויקט חדש) ---------- */
-// body מינימלי:
+// POST /api/projects - create new project
+// minimal body needed:
 // { name: string, status: ProjectStatus, customer?, address?, asset?, visit?, payments?, notes?, archived? }
 router.post("/", async (req, res) => {
   try {
@@ -317,8 +313,12 @@ router.post("/", async (req, res) => {
     const visitsCol = adminDb.collection("visits");
     const visitRef = parsed ? visitsCol.doc(`project_${projectRef.id}`) : null;
 
+    const countersCol = adminDb.collection("projectCounters");
+    const counterRef = countersCol.doc(userId);
+
     let createdVisitId: string | null = null;
     let alreadyExisted = false;
+    let serialNo: number | null = null;
 
     await adminDb.runTransaction(async (tx) => {
       const projectSnap = await tx.get(projectRef);
@@ -328,12 +328,28 @@ router.post("/", async (req, res) => {
         visitSnap = await tx.get(visitRef);
       }
 
-      // אם הפרויקט כבר קיים (אותו clientRequestId) -> לא ליצור שוב
       if (projectSnap.exists) {
         alreadyExisted = true;
         createdVisitId = (projectSnap.get("visitId") as string) || null;
+        serialNo = (projectSnap.get("serialNo") as number) ?? null;
         return;
       }
+
+      // add project serial number
+      const counterSnap = await tx.get(counterRef);
+      const currentNext =
+        (counterSnap.exists ? Number(counterSnap.get("nextSerialNo")) : 1) || 1;
+
+      serialNo = currentNext;
+
+      tx.set(
+        counterRef,
+        {
+          nextSerialNo: currentNext + 1,
+          updatedAt: Timestamp.now(),
+        },
+        { merge: true }
+      );
 
       const firstName = String(customer?.firstName ?? "").trim();
       const lastName = String(customer?.lastName ?? "").trim();
@@ -344,6 +360,8 @@ router.post("/", async (req, res) => {
 
       tx.create(projectRef, {
         userId,
+        serialNo,
+
         name: name.trim(),
         status,
         archived: Boolean(archived),
@@ -362,6 +380,7 @@ router.post("/", async (req, res) => {
           company: customer?.company ?? "",
           description: customer?.description ?? "",
         },
+
         address: {
           city: address?.city ?? "",
           street: address?.street ?? "",
@@ -404,7 +423,6 @@ router.post("/", async (req, res) => {
           address,
         });
 
-        // אם משום מה הביקור כבר קיים (ריטריי) - לא ליצור שוב
         if (!visitSnap?.exists) {
           tx.create(visitRef, {
             userId,
@@ -445,6 +463,7 @@ router.post("/", async (req, res) => {
       }
     });
 
+    // create event in calender
     let calendarResult: any = null;
 
     if (createdVisitId) {
@@ -476,6 +495,34 @@ router.post("/", async (req, res) => {
             endsAt,
           });
 
+          if (createdVisitId) {
+            await adminDb
+              .collection("visits")
+              .doc(createdVisitId)
+              .set(
+                {
+                  calendar: calendarResult?.ok
+                    ? {
+                        calendarId: calendarResult.calendarId ?? "primary",
+                        eventId: calendarResult.eventId ?? null,
+                        htmlLink: calendarResult.htmlLink ?? null,
+                      }
+                    : null,
+
+                  calendarDebug: {
+                    ok: Boolean(calendarResult?.ok),
+                    reason: calendarResult?.reason ?? null,
+                    detail: calendarResult?.detail ?? null,
+                    raw: calendarResult ?? null,
+                    at: Timestamp.now(),
+                  },
+
+                  updatedAt: Timestamp.now(),
+                },
+                { merge: true }
+              );
+          }
+
           if (calendarResult?.ok && calendarResult?.eventId) {
             await adminDb
               .collection("visits")
@@ -495,15 +542,19 @@ router.post("/", async (req, res) => {
         }
       }
     }
+
     projectsCache.clear();
+
     return res.json({
       id: projectRef.id,
+      serialNo,
       visitId: createdVisitId,
       alreadyExisted,
       calendar: calendarResult,
     });
   } catch (e: any) {
-    return res.status(500).json({ error: e.message });
+    console.error("[projects.post] error:", e);
+    return res.status(500).json({ error: e?.message ?? "unknown error" });
   }
 });
 
@@ -523,7 +574,6 @@ router.get("/:id", async (req, res) => {
 
     const project: any = { id: projectSnap.id, ...projectSnap.data() };
 
-    // אם יש visitId - נטען את הביקור ונמיר לפורמט של הטופס
     const visitId = project.visitId as string | null | undefined;
 
     let visit: any = null;
@@ -554,7 +604,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-/* ---------- PUT /api/projects/:id (עדכון חלקי + ביקור + יומן) ---------- */
+// PUT /api/projects/:id update project/visit
 router.put("/:id", async (req, res) => {
   try {
     const userId = (req as any).userId as string;
@@ -575,7 +625,6 @@ router.put("/:id", async (req, res) => {
       archived,
     } = req.body || {};
 
-    // ---- patch לפרויקט ----
     const projectPatch: any = {};
 
     if (name !== undefined) projectPatch.name = String(name);
@@ -604,7 +653,6 @@ router.put("/:id", async (req, res) => {
         firstName,
         lastName,
         name: fullName,
-        // cause we removed it so it will not collapse
         city: "",
       };
     }
@@ -630,7 +678,6 @@ router.put("/:id", async (req, res) => {
 
     const parsed = toVisitTimestamps(visit?.visitDate, visit?.visitTime, 60);
 
-    // ---- state יציב (מונע never + נוח ליומן אחרי טרנזקציה) ----
     type VisitForCalendar = {
       title: string;
       addressText: string;
@@ -646,7 +693,7 @@ router.put("/:id", async (req, res) => {
       existingEventId?: string;
       removedEventId: string | null;
       visitForCalendar: VisitForCalendar | null;
-      canceledVisitId: string | null; // כדי לנקות calendar במסמך אם ביטלנו
+      canceledVisitId: string | null; // if we canceled visit it will be deleted from calender
     } = {
       finalVisitId: null,
       existingEventId: undefined,
@@ -685,7 +732,6 @@ router.put("/:id", async (req, res) => {
         state.existingEventId = undefined;
       }
 
-      // נחשב address לשימוש בביקור (אם נשלח patch -> הוא קודם)
       const mergedAddress =
         address !== undefined
           ? projectPatch.address
@@ -696,10 +742,9 @@ router.put("/:id", async (req, res) => {
           ? asset?.assessor
           : (projSnap.get("asset") as any)?.assessor ?? "";
 
-      // תמיד מעדכנות פרויקט
       tx.update(projectRef, projectPatch);
 
-      // --- ביטול ביקור ---
+      // cancel visit
       if (!parsed) {
         if (existingVisitRef && existingVisitSnap?.exists) {
           state.removedEventId = state.existingEventId ?? null;
@@ -707,7 +752,6 @@ router.put("/:id", async (req, res) => {
 
           tx.update(existingVisitRef, {
             status: "canceled",
-            // כדי שלא נשאר עם eventId ישן בביקור שבוטל:
             calendar: null,
             updatedAt: Timestamp.now(),
           });
@@ -723,7 +767,7 @@ router.put("/:id", async (req, res) => {
         return;
       }
 
-      // --- יצירה / עדכון ביקור ---
+      // update/create visit
       const visitRefToUse = existingVisitRef ?? visitsCol.doc();
 
       const { addressText, googleMapsUrl, wazeUrl } = buildNavLinks({
@@ -769,7 +813,7 @@ router.put("/:id", async (req, res) => {
           updatedAt: Timestamp.now(),
         });
 
-        state.existingEventId = undefined; // ביקור חדש => יצירה חדשה ביומן
+        state.existingEventId = undefined;
       }
 
       state.finalVisitId = visitRefToUse.id;
@@ -789,7 +833,6 @@ router.put("/:id", async (req, res) => {
       };
     });
 
-    // ---------- יומן (לא מפיל שמירה) ----------
     let calendarResult: any = null;
 
     try {
@@ -803,7 +846,7 @@ router.put("/:id", async (req, res) => {
 
         calendarResult = await upsertGoogleCalendarEvent({
           userId,
-          existingEventId: state.existingEventId, // string | undefined
+          existingEventId: state.existingEventId,
           title: vfc.title,
           addressText: vfc.addressText,
           notes: vfc.notes,
@@ -858,7 +901,6 @@ router.post("/:id/visits", async (req, res) => {
     const projectId = req.params.id;
     const body = req.body || {};
 
-    // תומך גם ב-startsAt וגם ב-date+time
     let startsAtIso = String(body.startsAt ?? "");
     if (!startsAtIso) {
       const d = String(body.date ?? "");
@@ -893,7 +935,7 @@ router.post("/:id/visits", async (req, res) => {
 
       const existingVisitId = projSnap.get("visitId") as string | undefined;
 
-      // ✅ אם כבר יש ביקור מקושר לפרויקט — לא יוצרים עוד אחד ולא מחזירים 409
+      // not craeting new visit - if there is already one attached to the project
       if (existingVisitId) {
         const visitRef = visitsCol.doc(existingVisitId);
         const visitSnap = await tx.get(visitRef);
@@ -904,7 +946,7 @@ router.post("/:id/visits", async (req, res) => {
         return;
       }
 
-      // ✅ יוצרים ביקור חדש ומקשרים אותו לפרויקט באותה טרנזקציה
+      // create new visit
       const visitRef = visitsCol.doc();
 
       const durationMinutes = Number(body?.durationMinutes ?? 60);
@@ -928,7 +970,6 @@ router.post("/:id/visits", async (req, res) => {
         instructions: body?.instructions ?? "",
         parkingInfo: body?.parkingInfo ?? "",
 
-        // בהמשך נמלא את זה מהפרויקט (addressText/nav וכו’) אם תרצי
         addressText: body?.addressText ?? null,
         nav: body?.nav ?? {},
 
@@ -947,7 +988,7 @@ router.post("/:id/visits", async (req, res) => {
       out = { id: visitRef.id, ...payload };
     });
 
-    // ממירים timestamps ל-ISO כדי שהפרונט לא יתבאס
+    // tranform to match the FE
     if (out?.startsAt?.toDate)
       out.startsAt = out.startsAt.toDate().toISOString();
     if (out?.endsAt?.toDate) out.endsAt = out.endsAt.toDate().toISOString();

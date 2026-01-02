@@ -9,8 +9,6 @@ import {
   Grid,
   MenuItem,
   Box,
-  ButtonGroup,
-  InputAdornment,
   Divider,
   Typography,
   Switch,
@@ -22,7 +20,6 @@ import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined
 import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
 import {
   PROJECT_STATUS_ORDER,
   PROJECT_STATUS_META,
@@ -99,20 +96,19 @@ export default function CreateProjectDialog({
 
   const isValidEmail = (v: string) => {
     const s = v.trim();
-    if (!s) return true; // אימייל לא חובה, אבל אם יש - חייב להיות תקין
+    if (!s) return true;
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
   };
 
   const normalizePhone = (v: string) => v.replace(/[^\d+]/g, "").trim();
 
+  //small validation - needs to improve
   const isValidPhone = (v: string) => {
     const s = normalizePhone(v);
-    // ישראל לרוב: 05XXXXXXXX / 0XXXXXXXXX / +972...
-    // כאן ולידציה “סבירה” בלי להיות קשוחה מדי:
+    // 05XXXXXXXX / 0XXXXXXXXX / +972...
     return /^0\d{8,9}$/.test(s) || /^\+?\d{9,15}$/.test(s);
   };
 
-  // כתובת חובה: לפחות רחוב + מספר + עיר (כי את משתמשת בזה גם לאוטוקומפליט/מפות/ביקורים)
   const hasRequiredAddress = (a: ProjectForm["address"]) =>
     Boolean(String(a?.street || "").trim()) &&
     Boolean(String(a?.number || "").trim()) &&
@@ -175,7 +171,6 @@ export default function CreateProjectDialog({
   const validateStep = (k: StepKey) => {
     const nextErrors: FormErrors = {};
 
-    // תמיד: שם פרויקט חובה (מופיע למעלה בכל שלב)
     if (!form.name.trim()) nextErrors.name = "חובה למלא שם פרויקט";
 
     if (k === "customer") {
@@ -222,7 +217,7 @@ export default function CreateProjectDialog({
         {mode === "edit" ? "עריכת פרויקט" : "הוספת פרויקט"}
       </DialogTitle>
 
-      <DialogContent dividers sx={{ pt: 1 }}>
+      <DialogContent dividers sx={{ pt: 1, px: { xs: 1.25, sm: 3 } }}>
         <Box
           sx={{
             mt: 2,
@@ -237,25 +232,39 @@ export default function CreateProjectDialog({
             justifyContent: "flex-start",
           }}
         >
-          <ButtonGroup
-            variant="outlined"
+          <Box
             sx={{
-              flexWrap: "wrap",
-              gap: 1,
-              "& .MuiButton-root": { borderRadius: 2 },
+              mt: 2,
+              mb: -2,
+              px: { xs: 0, sm: 1 },
             }}
           >
-            {steps.map((s) => (
-              <Button
-                key={s.key}
-                onClick={() => setStep(s.key)}
-                variant={step === s.key ? "contained" : "outlined"}
-                startIcon={s.icon}
-              >
-                {s.label}
-              </Button>
-            ))}
-          </ButtonGroup>
+            <Grid
+              container
+              spacing={1}
+              sx={{
+                mb: 2,
+              }}
+            >
+              {steps.map((s, index) => (
+                <Grid item xs={4} sm="auto" key={s.key}>
+                  <Button
+                    fullWidth
+                    onClick={() => setStep(s.key)}
+                    variant={step === s.key ? "contained" : "outlined"}
+                    startIcon={s.icon}
+                    sx={{
+                      borderRadius: 2,
+                      whiteSpace: "nowrap",
+                      px: 1,
+                    }}
+                  >
+                    {s.label}
+                  </Button>
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
         </Box>
 
         <Grid container spacing={2} sx={{ mb: 1 }}>
@@ -297,8 +306,8 @@ export default function CreateProjectDialog({
         <Divider sx={{ mb: 2 }} />
 
         {step === "customer" && (
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
+          <Grid container spacing={{ xs: 1.5, sm: 2 }}>
+            <Grid item xs={12} sm={3}>
               <TextField
                 fullWidth
                 label="שם פרטי"
@@ -314,7 +323,7 @@ export default function CreateProjectDialog({
               />
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} sm={3}>
               <TextField
                 fullWidth
                 label="שם משפחה"
@@ -330,7 +339,7 @@ export default function CreateProjectDialog({
               />
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} sm={3}>
               <TextField
                 fullWidth
                 label="טלפון"
@@ -356,7 +365,7 @@ export default function CreateProjectDialog({
                 }}
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} sm={3}>
               <TextField
                 fullWidth
                 label='דוא"ל'
@@ -379,14 +388,9 @@ export default function CreateProjectDialog({
                       : "אימייל לא תקין",
                   }));
                 }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">@</InputAdornment>
-                  ),
-                }}
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} size={11.7}>
               <TextField
                 fullWidth
                 label="הערות לקוח"
@@ -403,7 +407,7 @@ export default function CreateProjectDialog({
 
         {step === "address" && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <Box sx={{ width: "76%" }}>
+            <Box sx={{ width: { xs: "100%", md: "76%", lg: "100%" } }}>
               <AddressAutocomplete
                 label="חיפוש כתובת"
                 fullWidth
@@ -435,9 +439,8 @@ export default function CreateProjectDialog({
               ) : null}
             </Box>
 
-            {/* שאר שדות הכתובת (בלי עיר/רחוב/מספר) */}
             <Grid container spacing={2}>
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={4} size={4}>
                 <TextField
                   fullWidth
                   label="דירה"
@@ -451,7 +454,7 @@ export default function CreateProjectDialog({
                 />
               </Grid>
 
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={4} size={4}>
                 <TextField
                   fullWidth
                   label="שכונה"
@@ -468,7 +471,7 @@ export default function CreateProjectDialog({
                 />
               </Grid>
 
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={4} size={4}>
                 <TextField
                   fullWidth
                   label="גוש"
@@ -482,7 +485,7 @@ export default function CreateProjectDialog({
                 />
               </Grid>
 
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={4} size={4}>
                 <TextField
                   fullWidth
                   label="חלקה"
@@ -496,7 +499,7 @@ export default function CreateProjectDialog({
                 />
               </Grid>
 
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={4} size={4}>
                 <TextField
                   fullWidth
                   label="תת חלקה"
@@ -510,7 +513,7 @@ export default function CreateProjectDialog({
                 />
               </Grid>
 
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={4} size={4}>
                 <TextField
                   fullWidth
                   label="מגרש"
@@ -529,7 +532,7 @@ export default function CreateProjectDialog({
 
         {step === "asset" && (
           <Grid container spacing={2}>
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={3} size={3}>
               <TextField
                 fullWidth
                 label="קומה"
@@ -542,7 +545,7 @@ export default function CreateProjectDialog({
                 }
               />
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={3} size={3}>
               <TextField
                 fullWidth
                 label="חדרים"
@@ -555,7 +558,7 @@ export default function CreateProjectDialog({
                 }
               />
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={3} size={3}>
               <TextField
                 fullWidth
                 label={'מ"ר רשום'}
@@ -568,7 +571,7 @@ export default function CreateProjectDialog({
                 }
               />
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={3} size={3}>
               <TextField
                 fullWidth
                 label="סוג נכס"
@@ -581,7 +584,7 @@ export default function CreateProjectDialog({
                 }
               />
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={4} size={3}>
               <TextField
                 fullWidth
                 label="שימוש בנכס"
@@ -594,7 +597,7 @@ export default function CreateProjectDialog({
                 }
               />
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={4} size={3}>
               <TextField
                 fullWidth
                 label="מטרת השומה"
@@ -607,7 +610,7 @@ export default function CreateProjectDialog({
                 }
               />
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={4} size={3}>
               <TextField
                 type="date"
                 InputLabelProps={{ shrink: true }}
@@ -622,7 +625,7 @@ export default function CreateProjectDialog({
                 }
               />
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={4} size={3}>
               <TextField
                 type="date"
                 InputLabelProps={{ shrink: true }}
@@ -637,7 +640,7 @@ export default function CreateProjectDialog({
                 }
               />
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={4} size={3}>
               <TextField
                 fullWidth
                 label="שמאי אחראי"
@@ -650,7 +653,7 @@ export default function CreateProjectDialog({
                 }
               />
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={4} size={3}>
               <TextField
                 fullWidth
                 label="גורם מפנה"
@@ -668,7 +671,7 @@ export default function CreateProjectDialog({
 
         {step === "visit" && (
           <Grid container spacing={2}>
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={4} size={4}>
               <TextField
                 fullWidth
                 label="תפקיד איש קשר"
@@ -681,7 +684,7 @@ export default function CreateProjectDialog({
                 }
               />
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={4} size={4}>
               <TextField
                 fullWidth
                 label="שם איש קשר"
@@ -694,7 +697,7 @@ export default function CreateProjectDialog({
                 }
               />
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={4} size={4}>
               <TextField
                 fullWidth
                 label="טלפון איש קשר"
@@ -707,7 +710,7 @@ export default function CreateProjectDialog({
                 }
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} md={6} size={6}>
               <TextField
                 type="date"
                 InputLabelProps={{ shrink: true }}
@@ -722,7 +725,7 @@ export default function CreateProjectDialog({
                 }
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} md={6} size={6}>
               <TextField
                 type="time"
                 InputLabelProps={{ shrink: true }}
@@ -737,7 +740,8 @@ export default function CreateProjectDialog({
                 }
               />
             </Grid>
-            <Grid item xs={12}>
+
+            <Grid item xs={12} size={12}>
               <TextField
                 fullWidth
                 multiline

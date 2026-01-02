@@ -57,14 +57,12 @@ export default function ProjectsMapPage() {
   const [selectedStatuses, setSelectedStatuses] =
     useState<ProjectStatus[]>(initialStatuses);
 
-  // items מהשרת (בשביל lat/lng לפי ids)
+  // items from BE for lat/lng
   const [visibleItems, setVisibleItems] = useState<ProjectMapItem[]>([]);
   const visibleById = useMemo(
     () => new Map(visibleItems.map((x) => [x.id, x])),
     [visibleItems]
   );
-
-  // --- מסלול ---
   const [routeMode, setRouteMode] = useState(false);
   const [routeIds, setRouteIds] = useState<string[]>([]);
   const [directions, setDirections] =
@@ -76,8 +74,6 @@ export default function ProjectsMapPage() {
   const [routeError, setRouteError] = useState<string | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
   const [orderedStops, setOrderedStops] = useState<ProjectMapItem[]>([]);
-
-  // Drawer
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const resetRouteOutputs = () => {
@@ -95,13 +91,13 @@ export default function ProjectsMapPage() {
     p.set(MAP_STATUSES_QUERY_KEY, encodeStatuses(next));
     setParams(p, { replace: true });
 
-    // איפוס מסלול
+    // reset route
     setRouteIds([]);
     resetRouteOutputs();
   };
 
   const onToggleRouteId = (id: string) => {
-    // שינוי בחירה -> לנקות תוצאות מסלול (כדי שלא יציג מסלול ישן)
+    // clean old route
     setRouteError(null);
     setDirections(null);
     setRouteSummary(null);
@@ -132,7 +128,7 @@ export default function ProjectsMapPage() {
         return;
       }
 
-      // פריטים שנבחרו לפי סדר הבחירה
+      // items chosen by order
       const chosen = routeIds
         .map((id) => visibleById.get(id))
         .filter(Boolean) as ProjectMapItem[];
@@ -166,7 +162,6 @@ export default function ProjectsMapPage() {
 
       setDirections(res);
 
-      // --- סדר עצירות אופטימלי ---
       const route = res.routes?.[0];
       const order = route?.waypoint_order ?? [];
 
@@ -179,7 +174,7 @@ export default function ProjectsMapPage() {
       const finalStops = [originItem, ...optimizedMiddle, destinationItem];
       setOrderedStops(finalStops);
 
-      // --- סיכום זמן/מרחק ---
+      // calculate time + distance
       const legs = route?.legs ?? [];
       const totalMeters = legs.reduce(
         (s, leg) => s + (leg.distance?.value ?? 0),
@@ -206,7 +201,6 @@ export default function ProjectsMapPage() {
 
       setRouteSummary({ distanceText, durationText });
 
-      // פותח Drawer אחרי חישוב מוצלח
       setDrawerOpen(true);
     } catch (e: any) {
       console.error(e);
@@ -225,10 +219,10 @@ export default function ProjectsMapPage() {
     <Box sx={{ p: 2 }}>
       <Paper sx={{ p: 2, mb: 2 }}>
         <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
+          direction={{ xs: "column", sm: "row" }}
+          alignItems={{ xs: "stretch", sm: "center" }}
           spacing={2}
+          sx={{ width: { xs: "100%", sm: "auto" } }}
         >
           <Typography variant="h6">מפת פרויקטים</Typography>
 
@@ -328,7 +322,6 @@ export default function ProjectsMapPage() {
                 חשב מסלול
               </Button>
 
-              {/* כפתור לפתיחת Drawer גם ידנית */}
               <Button
                 variant="outlined"
                 onClick={() => setDrawerOpen(true)}
@@ -356,7 +349,6 @@ export default function ProjectsMapPage() {
         )}
       </Paper>
 
-      {/* המפה */}
       <Paper sx={{ height: "calc(100vh - 140px)" }}>
         <ProjectsMap
           selectedStatuses={selectedStatuses}
@@ -370,7 +362,6 @@ export default function ProjectsMapPage() {
         />
       </Paper>
 
-      {/* Drawer מסלול */}
       <Drawer
         anchor="right"
         open={drawerOpen}

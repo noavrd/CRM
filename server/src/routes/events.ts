@@ -1,4 +1,3 @@
-// server/src/routes/events.ts
 import { Router } from "express";
 import { google } from "googleapis";
 import { adminDb } from "../firebaseAdmin";

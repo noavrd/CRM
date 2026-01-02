@@ -13,7 +13,7 @@ import googleCalendarRouter from "./googleCalendar";
 export function registerRoutes(app: Express) {
   app.get("/health", (_req, res) => res.json({ ok: true }));
   app.use((req, res, next) => {
-    // Google OAuth callback מגיע בלי Authorization header — חייב להיות פתוח
+    // Google OAuth callback comes without Authorization header
     if (req.originalUrl.startsWith("/api/google/calendar/callback"))
       return next();
     return requireUser(req, res, next);

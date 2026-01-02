@@ -12,7 +12,7 @@ import {
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import { DateTime } from "luxon";
-import { type Task, type ProjectOption } from "../types";
+import { type Task } from "../types";
 import { useProjectsOptions } from "../../hooks/useProjectsOptions";
 
 type Props = {

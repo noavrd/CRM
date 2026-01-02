@@ -1,12 +1,11 @@
 import { Router } from "express";
 import { adminDb } from "../firebaseAdmin";
-import { Timestamp } from "firebase-admin/firestore";
 
 const router = Router();
 
 const DEFAULT_DAYS = 7;
 const MAX_DAYS = 60;
-const LIMIT_SCAN = 250; // כמה ביקורים להביא למשתמש ואז לסנן בזיכרון (בלי אינדקס)
+const LIMIT_SCAN = 250; // how much visits to show for the user
 
 function clampDays(v: any) {
   const n = Number(v);
@@ -45,7 +44,6 @@ router.get("/upcoming", async (req, res) => {
     const nowMs = now.getTime();
     const untilMs = nowMs + days * 24 * 60 * 60 * 1000;
 
-    // ✅ בלי אינדקס: מביאים ביקורים של המשתמש בלבד (אין startsAt בתנאי)
     const snap = await adminDb
       .collection("visits")
       .where("userId", "==", userId)
@@ -54,7 +52,6 @@ router.get("/upcoming", async (req, res) => {
 
     const docs = snap.docs;
 
-    // נבנה רשימה גולמית + נסנן שבוע קדימה + נמיין בזיכרון
     const filteredDocs = docs
       .map((d) => {
         const data: any = d.data();
@@ -64,7 +61,7 @@ router.get("/upcoming", async (req, res) => {
       .filter((x) => x.ms !== null && x.ms >= nowMs && x.ms < untilMs)
       .sort((a, b) => a.ms! - b.ms!);
 
-    // projectIds להצגת שם פרויקט
+    // to show projectName from projectIds
     const projectIds = Array.from(
       new Set(filteredDocs.map((x) => x.data.projectId).filter(Boolean))
     ) as string[];

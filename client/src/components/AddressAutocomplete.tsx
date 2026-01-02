@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Autocomplete,
   TextField,
@@ -44,14 +44,13 @@ export default function AddressAutocomplete({
   const [options, setOptions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // לסנכרן value חיצוני אם יש
   useEffect(() => {
     if (value !== undefined && value !== input) {
       setInput(value);
     }
   }, [value]);
 
-  // debounce קטן
+  // small debounce
   useEffect(() => {
     const q = input.trim();
     if (!q || q.length < 3) {
@@ -102,7 +101,7 @@ export default function AddressAutocomplete({
       sx={{ width: "100%" }}
       options={options}
       getOptionLabel={(opt) => opt.description ?? ""}
-      filterOptions={(x) => x} // לא לסנן שוב בצד הקליינט
+      filterOptions={(x) => x} // no need to filter again in FE, done in the BE
       loading={loading}
       autoHighlight
       noOptionsText={

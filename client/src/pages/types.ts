@@ -189,6 +189,7 @@ export type Project = {
   address: any;
   status: ProjectStatus | undefined;
   id: ID;
+  serialNo?: number;
   name: string;
   pipelineStatus?: ProjectStatus;
   customer?: { name?: string; phone?: string; city?: string };

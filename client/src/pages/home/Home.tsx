@@ -1,11 +1,9 @@
 import { Box, Grid } from "@mui/material";
-import LeadsCard from "../leads/LeadsCard";
 import ProjectsDonutCard from "../projects/ProjectsDonutCard";
 import TasksListCard from "../tasks/TasksListCard";
 import CalendarCard from "../events/CalendarCard";
 import NextVisits from "../visits/NextVisitsCard";
 import ProjectsMapCard from "../projects/ProjectsMapCard";
-import { api } from "@/api/http";
 
 const H_FIRST = { xs: 350, sm: 260, md: 260, lg: 280 };
 const H_SECOND = { xs: 350, sm: 360, md: 350, lg: 340 };

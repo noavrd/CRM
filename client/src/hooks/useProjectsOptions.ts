@@ -3,9 +3,8 @@ import { api } from "@/api/http";
 import type { ProjectOption } from "../pages/types";
 
 type Options = {
-  /** להוסיף אופציה של "ללא פרויקט" */
+  //case no project
   allowNone?: boolean;
-  /** טקסט מותאם ל"ללא פרויקט" */
   noneLabel?: string;
 };
 

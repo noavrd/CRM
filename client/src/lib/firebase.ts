@@ -5,7 +5,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signOut as fbSignOut,
-  onAuthStateChanged
+  onAuthStateChanged,
 } from "firebase/auth";
 
 const firebaseConfig = {
@@ -38,7 +38,8 @@ export async function getIdToken(forceRefresh = false) {
   return u ? u.getIdToken(forceRefresh) : null;
 }
 
-//optional - listen to changes while sign in
-export function onAuth(cb: (user: import("firebase/auth").User|null) => void) {
+export function onAuth(
+  cb: (user: import("firebase/auth").User | null) => void
+) {
   return onAuthStateChanged(auth, cb);
 }

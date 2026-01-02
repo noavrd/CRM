@@ -1,5 +1,3 @@
-// src/layout/RootLayout.tsx
-
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   AppBar,
@@ -13,23 +11,17 @@ import {
   Stack,
   ButtonBase,
   Button,
-  Drawer,
-  List,
-  ListItemButton,
   ListItemIcon,
-  ListItemText,
   Divider,
   IconButton,
 } from "@mui/material";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
-import MenuIcon from "@mui/icons-material/Menu";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import WorkOutlineIcon from "@mui/icons-material/WorkOutline";
 import TaskAltOutlinedIcon from "@mui/icons-material/TaskAltOutlined";
 import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
-import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
 import ThemeToggle from "@/components/ThemeToggle";
 import { signOut } from "@/lib/firebase";
@@ -113,7 +105,7 @@ export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
     []
   );
 
-  // ----- תפריט משתמש (אווטאר) -----
+  // user menu - avatr
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const userMenuOpen = Boolean(anchorEl);
   const handleUserMenuOpen = (e: React.MouseEvent<HTMLElement>) =>
@@ -125,7 +117,7 @@ export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
     await signOut();
   };
 
-  // ----- dropdown בכותרת "שמאות מקרקעין..." -----
+  // dropdown headline + pages
   const [brandAnchor, setBrandAnchor] = React.useState<null | HTMLElement>(
     null
   );
@@ -134,7 +126,7 @@ export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
     setBrandAnchor(e.currentTarget);
   const closeBrandMenu = () => setBrandAnchor(null);
 
-  // ----- Drawer overlay (לא מזיז מסך) -----
+  // Drawer overlay - screen not moving
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const closeDrawer = () => setDrawerOpen(false);
 
@@ -148,15 +140,18 @@ export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
     const run = async () => {
       if (!user) return;
       if (didAutoConnect.current) return;
-      didAutoConnect.current = true;
 
       const dbg = await api<{ exists: boolean }>("/api/google/calendar/debug");
       if (!dbg?.exists) {
+        didAutoConnect.current = true;
         const { url } = await api<{ url: string }>(
           "/api/google/calendar/connect"
         );
         window.location.href = url;
+        return;
       }
+
+      didAutoConnect.current = true;
     };
 
     run().catch((e) => console.error("auto gcal connect failed", e));
@@ -179,7 +174,6 @@ export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
             gap: 1,
           }}
         >
-          {/* ימין: Brand */}
           <Box
             sx={{
               flexShrink: 0,
@@ -224,7 +218,7 @@ export default function RootLayout({ toggleMode }: { toggleMode: () => void }) {
             </Menu>
           </Box>
 
-          {/* אמצע: חיפוש (רק מ-sm ומעלה) */}
+          {/* search bar in the middle only screens sm and above*/}
           <Box
             sx={{
               flex: "1 1 auto",

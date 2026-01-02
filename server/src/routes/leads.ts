@@ -3,7 +3,7 @@ import { adminDb } from "../firebaseAdmin";
 import { Timestamp } from "firebase-admin/firestore";
 
 const router = Router();
-
+// we didn't used leads at the end
 // get statstics for dashboard
 router.get("/stats", async (req, res) => {
   try {
@@ -32,7 +32,6 @@ router.get("/", async (req, res) => {
     const snap = await adminDb
       .collection("leads")
       .where("userId", "==", userId)
-      // בלי orderBy – כדי לא לדרוש אינדקס מורכב
       .limit(50)
       .get();
 

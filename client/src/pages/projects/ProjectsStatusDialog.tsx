@@ -21,7 +21,7 @@ type Project = {
   customer?: { name?: string; city?: string };
   address?: { city?: string };
   paymentsTotal?: number;
-  createdAt?: any; // Timestamp או ISO
+  createdAt?: any;
 };
 
 type Props = {
@@ -40,7 +40,7 @@ function formatDate(value: any): string {
     return new Date(ms).toLocaleDateString("he-IL");
   }
 
-  // מחרוזת תאריך
+  // date in string
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "-";
   return d.toLocaleDateString("he-IL");

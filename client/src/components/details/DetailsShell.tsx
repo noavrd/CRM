@@ -34,13 +34,13 @@ export function DetailsShell({
           alignItems="center"
           justifyContent="space-between"
         >
-          {/* כותרת + צ'יפ */}
+          {/* title + status chip*/}
           <Stack direction="row" spacing={1} alignItems="center">
             <Typography variant="h6">{title}</Typography>
             {titleAdornment}
           </Stack>
 
-          {/* חזרה */}
+          {/* back button */}
           {onBack && (
             <Button onClick={onBack} endIcon={<ArrowBackIcon />} variant="text">
               חזרה

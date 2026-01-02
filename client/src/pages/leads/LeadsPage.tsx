@@ -11,7 +11,6 @@ export default function LeadsPage() {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
 
-  // נרמול תוצאת API: או מערך ישיר או { items: [...] }
   const load = async () => {
     const res = await api<Lead[] | { items: Lead[] }>("/api/leads");
     const arr = Array.isArray(res)
@@ -34,7 +33,6 @@ export default function LeadsPage() {
       return { ...x, createdAt };
     });
 
-    // מיון מקומי – חדשים למעלה
     normalized.sort((a, b) => {
       const ta = a.createdAt ? Date.parse(String(a.createdAt)) : 0;
       const tb = b.createdAt ? Date.parse(String(b.createdAt)) : 0;

@@ -26,7 +26,7 @@ export default function ProjectsDonutCard() {
   });
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  // סטטוס שנבחר בדונאט לדיאלוג
+  // chosen status to show in dialog
   const [dialogStatus, setDialogStatus] = useState<ProjectStatus | null>(null);
   const submitIdRef = useRef<string | null>(null);
 
@@ -83,7 +83,7 @@ export default function ProjectsDonutCard() {
       window.dispatchEvent(new Event("visits:changed"));
     } finally {
       setSaving(false);
-      submitIdRef.current = null; // מאפסים אחרי הצלחה/כישלון כדי ששמירה הבאה תקבל ID חדש
+      submitIdRef.current = null;
     }
   };
 
@@ -115,7 +115,6 @@ export default function ProjectsDonutCard() {
   const dataNonZero = seriesData.filter((d) => d.value > 0);
   const chartSize = 260;
 
-  // קליק על פרוסה – בוחרת סטטוס ופותחת דיאלוג
   const handleSliceClick = (_event: any, params: any) => {
     const index = params?.dataIndex as number | undefined;
     if (index == null) return;
@@ -138,7 +137,6 @@ export default function ProjectsDonutCard() {
         minHeight={380}
         contentSx={{}}
       >
-        {/* הקונטיינר הזה ממורכז גם אנכית וגם אופקית בתוך ה-CardContent */}
         <Box
           sx={{
             flex: 1,
@@ -172,7 +170,7 @@ export default function ProjectsDonutCard() {
                   paddingAngle: 2,
                   cornerRadius: 2,
                   valueFormatter: (it) => `${it.value}`,
-                  arcLabel: () => "",
+                  arcLabel: "value",
                   highlightScope: { fade: "none", highlight: "none" },
                   cx: "50%",
                   cy: "50%",
@@ -181,7 +179,7 @@ export default function ProjectsDonutCard() {
               onItemClick={handleSliceClick}
             />
 
-            {/* טקסט באמצע הדונאט */}
+            {/* amount text in the middle of the donut */}
             <Box
               sx={{
                 position: "absolute",
@@ -208,7 +206,7 @@ export default function ProjectsDonutCard() {
         </Box>
       </DashboardCard>
 
-      {/* דיאלוג פרויקטים לפי סטטוס */}
+      {/* show dialog by status*/}
       <ProjectStatusDialog
         open={Boolean(dialogStatus)}
         status={dialogStatus}

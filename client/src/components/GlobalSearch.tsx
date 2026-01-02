@@ -1,4 +1,3 @@
-// src/components/GlobalSearch.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -30,7 +29,6 @@ type SearchOption = {
   to: string; // לאן לנווט
 };
 
-// ---- טיפוסים מינימליים (לא תלויים בקבצי types שלך) ----
 type Project = {
   id: string;
   name?: string;
@@ -72,7 +70,7 @@ function findSnippet(
     const idx = hay.indexOf(q);
     if (idx === -1) continue;
 
-    // חותכים סביב ההתאמה כדי להציג "…"
+    //cut around match to show "…"
     const PAD = 18;
     const start = Math.max(0, idx - PAD);
     const end = Math.min(t.length, idx + q.length + PAD);
@@ -250,14 +248,14 @@ export default function GlobalSearch() {
         };
       });
 
-    // סדר: פרויקטים, משימות, ביקורים
+    // search order results: projects, tasks, visits
     return [...projectHits, ...taskHits, ...visitHits];
   }, [projects, tasks, visits, q]);
 
   const onPick = (opt: SearchOption | null) => {
     if (!opt) return;
     setOpen(false);
-    // ניקוי נחמד אחרי ניווט
+    // clean after search
     setInput("");
     navigate(opt.to);
   };
@@ -285,7 +283,7 @@ export default function GlobalSearch() {
         getOptionLabel={(o) => o.label}
         groupBy={(o) => groupLabel(o.kind)}
         noOptionsText={
-          q.trim().length < 2 ? "התחילי להקליד (לפחות 2 תווים)" : "אין תוצאות"
+          q.trim().length < 2 ? "התחיל להקליד (לפחות 2 תווים)" : "אין תוצאות"
         }
         renderInput={(params) => (
           <TextField

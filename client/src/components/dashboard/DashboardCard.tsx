@@ -37,7 +37,7 @@ export default function DashboardCard({
   title,
   children,
   onAdd,
-  addLabel = "הוספה",
+  addLabel = "הוספה", //default
   onShowAll,
   showAllLabel = "הצג הכל",
   headerActions,
@@ -64,7 +64,7 @@ export default function DashboardCard({
         ...sx,
       }}
     >
-      {/* פס כלים עליון (מכבד RTL) */}
+      {/* card buttons (upper row)*/}
       <Box
         sx={{
           position: "absolute",
@@ -79,7 +79,6 @@ export default function DashboardCard({
           pointerEvents: "none",
         }}
       >
-        {/* כפתור הוספה בקצה inline-start */}
         <Box sx={{ order: isRTL ? 1 : 2, pointerEvents: "auto" }}>
           {onAdd && (
             <Tooltip title={addLabel}>
@@ -96,12 +95,11 @@ export default function DashboardCard({
           )}
         </Box>
 
-        {/* כפתור הצג הכל בקצה inline-end */}
         <Box sx={{ order: isRTL ? 2 : 1, pointerEvents: "auto" }}>
           {onShowAll && (
             <Button
               size="small"
-              variant="contained" // ← תוקן: בלי "as any"
+              variant="contained"
               onClick={onShowAll}
               startIcon={
                 <ArrowBackIosNewIcon
@@ -124,7 +122,7 @@ export default function DashboardCard({
         </Box>
       </Box>
 
-      {/* כותרת */}
+      {/* card title */}
       <Box sx={{ pt: downSm ? 7 : 6, pb: 1, px: { xs: 1.75, sm: 2.25 } }}>
         <Stack direction="row" alignItems="center" justifyContent="center">
           <Typography
@@ -138,7 +136,6 @@ export default function DashboardCard({
         <Divider sx={{ mt: 1 }} />
       </Box>
 
-      {/* תוכן */}
       <CardContent
         sx={{
           minHeight,

@@ -109,7 +109,7 @@ export default function VisitsPage() {
         const link = r.calendar?.htmlLink;
         return link ? (
           <a href={link} target="_blank" rel="noreferrer">
-            פתחי אירוע
+            לפתוח ביומן
           </a>
         ) : (
           "-"

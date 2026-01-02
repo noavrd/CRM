@@ -24,9 +24,8 @@ type ProjectStatusMeta = {
     | "warning"
     | "info"
     | "error";
-  // טקסט להצגה
   label: string;
-  // צבע HEX לגרפים וכו'
+  //for graphs
   color: string;
   short?: string;
 };
